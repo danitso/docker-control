@@ -1,4 +1,4 @@
-# DOCKER-CONTROL
+# Docker Control
 
 A simple utility for controlling the Docker service.
 
@@ -9,15 +9,16 @@ users from starting/stopping/restarting the Docker service from the command line
 
 ## Requirements
 
-* Windows 10 (64-bit)
+* Windows 10
 
 ## Usage
 
 The following commands are available:
 
-* Start
-* Stop
-* Restart
+* start
+* stop
+* restart
+* version
 
 The commands are invoked like this:
 
