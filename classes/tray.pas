@@ -162,16 +162,22 @@ var
   ToolCaption: AnsiString;
   TrayButton: TTrayButton;
 begin
+  // Create a new TTrayButton instance and populate it with the values retrieved
+  // so far.
   TrayButton := TTrayButton.Create;
   TrayButton.ButtonIndex := Index;
   TrayButton.Overflow := Overflow;
   TrayButton.Parent := Self;
 
+  // Initialize the local variables in order to avoid issues when passing them
+  // as references.
   BytesRead := 0;
   RawButton := nil;
   RawResult := False;
 
   try
+    // Allocate memory for a TBBUTTON structure in the application which owns
+    // the toolbar window.
     RawButton := Pointer(VirtualAllocEx(
       ProcessHandle,
       nil,
@@ -180,6 +186,8 @@ begin
       PAGE_READWRITE
     ));
 
+    // Tell the external application to copy the TBBUTTON structure to the newly
+    // allocated space.
     {$HINTS OFF}
     RawResult := SendMessage(
       ToolBarWindow,
@@ -192,6 +200,8 @@ begin
     if not RawResult then
       raise Exception.Create('Failed to retrieve TBBUTTON pointer');
 
+    // Copy the TBBUTTON structure from the external application into the memory
+    // space for this application in order to access it.
     RawResult := ReadProcessMemory(
       ProcessHandle,
       RawButton,
@@ -203,10 +213,14 @@ begin
     if not RawResult then
       raise Exception.Create('Failed to retrieve TBBUTTON struct');
 
+    // Extract the image index from the TBBUTTON structure and store it in the
+    // wrapper class instance.
     TrayButton.ImageIndex := ToolButton.iBitmap;
 
-    // Assume that each tool button has a string reference for its caption, as
-    // we do not currently need to support indexes.
+    // Extract the button's caption and while these may actually be indexes, we
+    // simply assume that they are not, which is usually the case. We also
+    // ignore the fact that the caption is UTF-16 so we simply strip away any
+    // NULL characters which are not used as a string terminator.
     SetLength(ToolCaption, 1024);
     I := 0;
 
@@ -234,8 +248,6 @@ begin
       Inc(I, 2);
     end;
 
-    // We do not currently need to support unicode strings so we simply remove
-    // null characters and assume that no unicode strings are present.
     TrayButton.Caption := Trim(AnsiReplaceStr(ToolCaption, #0, ''));
     ButtonList.Add(TrayButton);
   except
