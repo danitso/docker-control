@@ -1,4 +1,4 @@
-program dockerctl;
+program docker_control;
 
 {$IFDEF FPC}
   {$MODE DELPHI}

@@ -7,6 +7,10 @@ A simple utility for controlling the Docker service.
 The utility was created due to a limitation in Docker for Windows 10 which prevents 
 users from starting/stopping/restarting the Docker service from the command line.
 
+## Requirements
+
+* Windows 10 (64-bit)
+
 ## Usage
 
 The following commands are available:
@@ -18,7 +22,7 @@ The following commands are available:
 The commands are invoked like this:
 
 ```bash
-dockerctl <command>
+docker-control <command>
 ```
 
 ## Contributing

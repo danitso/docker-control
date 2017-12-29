@@ -32,7 +32,7 @@
     </RunParams>
     <Units Count="5">
       <Unit0>
-        <Filename Value="dockerctl.pas"/>
+        <Filename Value="docker_control.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
@@ -61,7 +61,7 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin\dockerctl"/>
+      <Filename Value="bin\docker-control"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
