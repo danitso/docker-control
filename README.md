@@ -5,7 +5,7 @@ A simple utility for controlling the Docker service.
 ## Motivation
 
 The utility was created due to a limitation in Docker for Windows 10 which prevents 
-users from starting/stopping/restarting the Docker service from the command line.
+users from controlling the Docker service from the command line.
 
 ## Requirements
 
