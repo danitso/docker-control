@@ -1,8 +1,6 @@
 unit WindowsController;
 
-{$IFDEF FPC}
-  {$MODE DELPHI}
-{$ENDIF}
+{$MODE DELPHI}
 
 interface
 
@@ -245,8 +243,17 @@ begin
   begin
     if Pos('Docker', Tray.TrayButton[I].Caption) > 0 then
     begin
-      Tray.TrayButton[I].Popup;
-      TrayClicked := True;
+      try
+        Tray.TrayButton[I].Popup;
+        TrayClicked := True;
+      except
+        on E: exception do
+        begin
+          FErrorMessage := E.Message;
+          Exit;
+        end;
+      end;
+
       Break;
     end;
   end;
@@ -257,8 +264,17 @@ begin
     begin
       if Pos('Docker', Tray.OverflowButton[I].Caption) > 0 then
       begin
-        Tray.OverflowButton[I].Popup;
-        TrayClicked := True;
+        try
+          Tray.OverflowButton[I].Popup;
+          TrayClicked := True;
+        except
+          on E: exception do
+          begin
+            FErrorMessage := E.Message;
+            Exit;
+          end;
+        end;
+
         Break;
       end;
     end;

@@ -1,8 +1,6 @@
 unit TrayButton;
 
-{$IFDEF FPC}
-  {$MODE DELPHI}
-{$ENDIF}
+{$MODE DELPHI}
 
 interface
 
@@ -76,9 +74,7 @@ begin
   WindowRect.Create(0, 0, 0, 0);
 
   if not GetWindowRect(WindowHandle, WindowRect) then
-  begin
     raise Exception.Create('Failed to determine the tray window position');
-  end;
 
   if FOverflow then
   begin

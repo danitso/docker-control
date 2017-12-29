@@ -1,8 +1,6 @@
 unit ControllerInterface;
 
-{$IFDEF FPC}
-  {$MODE DELPHI}
-{$ENDIF}
+{$MODE DELPHI}
 
 interface
 

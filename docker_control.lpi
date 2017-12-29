@@ -17,7 +17,7 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
-      <StringTable CompanyName="Danitso" FileDescription="Controller for the Docker Service" ProductName="Docker Control" ProductVersion=""/>
+      <StringTable CompanyName="Danitso" FileDescription="Controller for the Docker service" LegalCopyright="Danitso" OriginalFilename="docker-control.exe" ProductName="Docker Control"/>
     </VersionInfo>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
