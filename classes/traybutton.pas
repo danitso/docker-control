@@ -25,6 +25,7 @@ type
     FImageIndex: Integer;
     FOverflow: Boolean;
     FParent: TObject;
+    FSize: TSize;
   public
     procedure Popup;
 
@@ -33,6 +34,7 @@ type
     property ImageIndex: Integer read FImageIndex write FImageIndex;
     property Overflow: Boolean read FOverflow write FOverflow;
     property Parent: TObject read FParent write FParent;
+    property Size: TSize read FSize write FSize;
   end;
 
 implementation
@@ -41,13 +43,16 @@ uses
   Tray;
 
 procedure TTrayButton.Popup;
+const
+  TIMEOUT = 10;
 var
   Cols: Integer;
   CursorPostion: TPoint;
+  I: Integer;
+  PopupWindowHandle: HWND;
+  PopupWindowPoint: POINT;
   Tray: TTray;
   TrayButtonCount: Integer;
-  TrayButtonHeight: Integer;
-  TrayButtonWidth: Integer;
   TrayButtonX: Integer;
   TrayButtonY: Integer;
   WindowHandle: HWND;
@@ -65,16 +70,20 @@ begin
   if FOverflow then
   begin
     TrayButtonCount := Tray.OverflowButtonCount;
-    TrayButtonHeight := 40;
-    TrayButtonWidth := 40;
     WindowHandle := Tray.OverflowWindow;
   end
   else
   begin
     TrayButtonCount := Tray.TrayButtonCount;
-    TrayButtonHeight := 40;
-    TrayButtonWidth := 24;
     WindowHandle := Tray.TrayWindow;
+  end;
+
+  // In case we are dealing with the overflow tray window, we need to ensure
+  // that it is visible and the top most window at its location.
+  if FOverflow then
+  begin
+    ShowWindow(WindowHandle, SW_SHOW);
+    BringWindowToTop(WindowHandle);
   end;
 
   // Determine the dimensions of the tray window and calculate the number of
@@ -84,25 +93,25 @@ begin
   if not GetWindowRect(WindowHandle, WindowRect) then
     raise Exception.Create('Failed to determine the tray window position');
 
-  Cols := WindowRect.Width div TrayButtonWidth;
+  Cols := WindowRect.Width div Self.Size.Width;
   Rows := 1;
 
   while (Cols * Rows < TrayButtonCount) do
     Inc(Rows);
 
   // Calculate the desktop coordinates for the tray icon (the tool button).
-  TrayButtonX := TrayButtonWidth div 2 + ((FButtonIndex mod Cols) *
-    TrayButtonWidth);
-  TrayButtonY := TrayButtonHeight div 2 + ((ButtonIndex div Cols) *
-    TrayButtonHeight);
+  TrayButtonX := Self.Size.Width div 2 + ((FButtonIndex mod Cols) *
+    Self.Size.Width);
+  TrayButtonY := Self.Size.Height div 2 + ((ButtonIndex div Cols) *
+    Self.Size.Height);
 
-  // In case we are dealing with the overflow tray window, we need to ensure
-  // that it is visible and the top most window at its location.
-  if FOverflow then
-  begin
-    ShowWindow(WindowHandle, SW_SHOWNOACTIVATE);
-    BringWindowToTop(WindowHandle);
-  end;
+  // Determine the window handle for the window which is currently visible at
+  // the location we expect the popup menu to appear.
+  PopupWindowPoint.Create(
+    WindowRect.Left + TrayButtonX - 16,
+    WindowRect.Top + TrayButtonY - 16
+  );
+  PopupWindowHandle := WindowFromPoint(PopupWindowPoint);
 
   // Move the cursor to the middle of the tool button and simulate a right click
   // on it in order to trigger the popup menu. While we would prefer to do this
@@ -110,14 +119,24 @@ begin
   // that we cannot target the correct event listener.
   GetCursorPos(CursorPostion);
   SetCursorPos(WindowRect.Left + TrayButtonX, WindowRect.Top + TrayButtonY);
-  mouse_event(MOUSEEVENTF_ABSOLUTE or MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
-  Sleep(1);
-  SetCursorPos(CursorPostion.x, CursorPostion.y);
 
-  // Hide the tray window again in case we are dealing with an overflowing
-  // button.
+  mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
+  mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+
+  // Wait for the popup menu to appear before hiding the tray window and moving
+  // the cursor back to its previous location.
+  for I := 1 to TIMEOUT * 100 do
+  begin
+    if WindowFromPoint(PopupWindowPoint) <> PopupWindowHandle then
+      Break;
+
+    Sleep(10);
+  end;
+
   if FOverflow then
     ShowWindow(WindowHandle, SW_HIDE);
+
+  SetCursorPos(CursorPostion.x, CursorPostion.y);
 end;
 
 end.

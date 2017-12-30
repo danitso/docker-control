@@ -164,7 +164,10 @@ end;
 function TWindowsController.Restart: Boolean;
 begin
   Result := Self.Stop;
-  if not Result then Exit;
+
+  if not Result then
+    Exit;
+
   Result := Self.Start;
 end;
 
@@ -283,6 +286,7 @@ const
   TIMEOUT = 120;
   TIMEOUT_WINDOW = 5;
 var
+  ActiveWindowHandle: HWND;
   CursorPostion: TPoint;
   I: Integer;
   ProcessId: Cardinal;
@@ -311,10 +315,14 @@ begin
     Exit;
   end;
 
+  // Determine the handle for the window which has the focus right now.
+  ActiveWindowHandle := GetForegroundWindow;
+
   // Simulate a right-click on the tray icon for the Docker UI application as we
   // need to make the popup menu (window) visible.
   if not ShowDockerUITrayMenu then
   begin
+    SetForegroundWindow(ActiveWindowHandle);
     FErrorMessage := 'Failed to trigger the Docker UI''s tray menu';
     Exit;
   end;
@@ -332,6 +340,7 @@ begin
 
   if WindowHandle = 0 then
   begin
+    SetForegroundWindow(ActiveWindowHandle);
     FErrorMessage := 'Failed to find the Docker UI tray window';
     Exit;
   end;
@@ -344,14 +353,18 @@ begin
 
   if not GetWindowRect(WindowHandle, WindowRect) then
   begin
+    SetForegroundWindow(ActiveWindowHandle);
     FErrorMessage := 'Failed to determine the Docker UI tray window placement';
     Exit;
   end;
 
   GetCursorPos(CursorPostion);
   SetCursorPos(WindowRect.Left + 10, WindowRect.Top + WindowRect.Height - 10);
+
   mouse_event(MOUSEEVENTF_ABSOLUTE or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+
   SetCursorPos(CursorPostion.x, CursorPostion.y);
+  SetForegroundWindow(ActiveWindowHandle);
 
   // Wait for the Docker UI process to terminate but do not wait for too long as
   // this entire approach can easily fail, if a new version of the Docker UI is

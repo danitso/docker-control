@@ -29,12 +29,20 @@ type
     function FindTrayWindow: HWND;
 
     function GetButtonCount(const ToolBarWindow: HWND): Integer;
+    function GetButtonRows(const ToolBarWindow: HWND): Integer;
+    function GetButtonSize(
+      const ProcessHandle: HWND;
+      const ToolBarWindow: HWND;
+      const ButtonIndex: Integer
+    ): TSize;
 
     function GetOverflowButton(const AIndex: Integer): TTrayButton;
     function GetOverflowButtonCount: Integer;
+    function GetOverflowButtonRows: Integer;
 
     function GetTrayButton(const AIndex: Integer): TTrayButton;
     function GetTrayButtonCount: Integer;
+    function GetTrayButtonRows: Integer;
 
     procedure LoadButton(
       const ProcessHandle: HANDLE;
@@ -57,12 +65,14 @@ type
     property OverflowButton[const AIndex: INteger]: TTrayButton
       read GetOverflowButton;
     property OverflowButtonCount: Integer read GetOverflowButtonCount;
+    property OverflowButtonRows: Integer read GetOverflowButtonRows;
     property OverflowToolBar: HWND read FOverflowToolBar;
     property OverflowWindow: HWND read FOverflowWindow;
 
     property TrayButton[const AIndex: INteger]: TTrayButton
       read GetTrayButton;
     property TrayButtonCount: Integer read GetTrayButtonCount;
+    property TrayButtonRows: Integer read GetTrayButtonRows;
     property TrayToolBar: HWND read FTrayToolBar;
     property TrayWindow: HWND read FTrayWindow;
   end;
@@ -126,6 +136,71 @@ begin
   Result := SendMessage(ToolBarWindow, TB_BUTTONCOUNT, 0, 0);
 end;
 
+function TTray.GetButtonRows(const ToolBarWindow: HWND): Integer;
+begin
+  Result := SendMessage(ToolBarWindow, TB_GETROWS, 0, 0);
+end;
+
+function TTray.GetButtonSize(
+  const ProcessHandle: HWND;
+  const ToolBarWindow: HWND;
+  const ButtonIndex: Integer
+): TSize;
+var
+  BytesRead: QWord;
+  Rect: TRect;
+  RectPointer: Pointer;
+  RectResult: Boolean;
+begin
+  Result.Create(-1, -1);
+  Rect.Create(0, 0, 0, 0);
+
+  try
+    RectPointer := Pointer(VirtualAllocEx(
+      ProcessHandle,
+      nil,
+      SizeOf(Rect),
+      MEM_COMMIT,
+      PAGE_READWRITE
+    ));
+
+    if RectPointer = nil then
+      Exit;
+
+    {$HINTS OFF}
+    RectResult := SendMessage(
+      ToolBarWindow,
+      TB_GETITEMRECT,
+      ButtonIndex,
+      NativeInt(RectPointer)
+    ) <> 0;
+    {$HINTS ON}
+
+    if not RectResult then
+      Exit;
+
+    BytesRead := 0;
+    RectResult := ReadProcessMemory(
+      ProcessHandle,
+      RectPointer,
+      @Rect,
+      SizeOf(Rect),
+      BytesRead
+    );
+
+    if not RectResult then
+      Exit;
+
+    Result.Create(Rect.Width, Rect.Height);
+  finally
+    if RectPointer <> nil then
+    begin
+      if not VirtualFreeEx(ProcessHandle, RectPointer, 0, MEM_RELEASE) then
+        raise Exception.Create('Failed to free RECT pointer');
+    end;
+  end;
+end;
+
 function TTray.GetOverflowButton(const AIndex: Integer): TTrayButton;
 begin
   Result := FOverflowButtons.Items[AIndex];
@@ -136,6 +211,11 @@ begin
   Result := FOverflowButtons.Count;
 end;
 
+function TTray.GetOverflowButtonRows: Integer;
+begin
+  Result := GetButtonRows(FOverflowToolBar);
+end;
+
 function TTray.GetTrayButton(const AIndex: Integer): TTrayButton;
 begin
   Result := FTrayButtons.Items[AIndex];
@@ -144,6 +224,11 @@ end;
 function TTray.GetTrayButtonCount: Integer;
 begin
   Result := FTrayButtons.Count;
+end;
+
+function TTray.GetTrayButtonRows: Integer;
+begin
+  Result := GetButtonRows(FTrayToolBar);
 end;
 
 procedure TTray.LoadButton(
@@ -181,7 +266,7 @@ begin
     RawButton := Pointer(VirtualAllocEx(
       ProcessHandle,
       nil,
-      SizeOf(RawButton),
+      SizeOf(ToolButton),
       MEM_COMMIT,
       PAGE_READWRITE
     ));
@@ -237,7 +322,7 @@ begin
       {$HINTS ON}
 
       if not RawResult then
-        raise Exception.Create('Failed to retrieve TBBUTTON caption');
+        Break;
 
       if (ToolCaption[I] = #0) and (ToolCaption[I + 1] = #0) then
       begin
@@ -249,13 +334,12 @@ begin
     end;
 
     TrayButton.Caption := Trim(AnsiReplaceStr(ToolCaption, #0, ''));
+    TrayButton.Size := GetButtonSize(ProcessHandle, ToolBarWindow, Index);
+
     ButtonList.Add(TrayButton);
   except
     on E: exception do
-    begin
       TrayButton.Free;
-      raise E;
-    end;
   end;
 
   if RawButton <> nil then
