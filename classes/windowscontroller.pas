@@ -23,8 +23,11 @@ type
   protected
     FErrorMessage: string;
 
-    function GetProcessId: Cardinal;
-    function GetTrayWindowHandle(const ProcessId: Cardinal): Cardinal;
+    function GetDockerUIPath: String;
+    function GetDockerUIProcessId: Cardinal;
+    function GetDockerUITrayWindowHandle(const ProcessId: Cardinal): Cardinal;
+    function IsDockerServiceRunning: Boolean;
+    function ShowDockerUITrayMenu: Boolean;
   public
     function GetErrorMessage: String;
     function Restart: Boolean;
@@ -34,12 +37,31 @@ type
 
 implementation
 
+function TWindowsController.GetDockerUIPath: String;
+var
+  Registry: TRegistry;
+begin
+  Result := '';
+
+  // Determine the path to the Docker UI's application directory by reading it
+  // from the Windows Registry.
+  try
+    Registry := TRegistry.Create;
+    Registry.RootKey := HKEY_LOCAL_MACHINE;
+
+    if Registry.OpenKeyReadOnly('\SOFTWARE\Docker Inc.\Docker\1.0') then
+      Result := Registry.ReadString('AppPath') + '\Docker for Windows.exe';
+  finally
+    FreeAndNil(Registry);
+  end;
+end;
+
 function TWindowsController.GetErrorMessage: String;
 begin
   Result := FErrorMessage;
 end;
 
-function TWindowsController.GetProcessId: Cardinal;
+function TWindowsController.GetDockerUIProcessId: Cardinal;
 const
   EXE_NAME = 'Docker for Windows.exe';
 var
@@ -70,7 +92,7 @@ begin
   end;
 end;
 
-function TWindowsController.GetTrayWindowHandle(
+function TWindowsController.GetDockerUITrayWindowHandle(
   const ProcessId: Cardinal
 ): Cardinal;
 var
@@ -117,11 +139,82 @@ begin
   end;
 end;
 
+function TWindowsController.IsDockerServiceRunning: Boolean;
+var
+  Process: TProcess;
+begin
+  Result := False;
+
+  // Invoke the 'docker ps' command in order to determine if the Docker service
+  // is running.
+  try
+    Process := TProcess.Create(nil);
+    Process.Executable := 'docker';
+    Process.Parameters.Append('ps');
+    Process.Options := [poWaitOnExit, poUsePipes];
+    Process.Execute;
+
+    if Process.ExitCode = 0 then
+      Result := True;
+  finally
+    FreeAndNil(Process);
+  end;
+end;
+
 function TWindowsController.Restart: Boolean;
 begin
   Result := Self.Stop;
   if not Result then Exit;
   Result := Self.Start;
+end;
+
+function TWindowsController.ShowDockerUITrayMenu: Boolean;
+var
+  I: Integer;
+  Tray: TTray;
+begin
+  Result := False;
+  Tray := TTray.Create;
+
+  // Scan the visible tray button list for the button which belongs to the
+  // Docker UI.
+  for I := 0 to Tray.TrayButtonCount - 1 do
+  begin
+    if Pos('Docker', Tray.TrayButton[I].Caption) > 0 then
+    begin
+      try
+        Tray.TrayButton[I].Popup;
+        Result := True;
+      except
+        on exception do
+          // Ignore the exception.
+      end;
+
+      FreeAndNil(Tray);
+      Exit;
+    end;
+  end;
+
+  // Scan the overflowing tray button list for the button which belongs to the
+  // Docker UI.
+  for I := 0 to Tray.OverflowButtonCount - 1 do
+  begin
+    if Pos('Docker', Tray.OverflowButton[I].Caption) > 0 then
+    begin
+      try
+        Tray.OverflowButton[I].Popup;
+        Result := True;
+      except
+        on exception do
+          // Ignore the exception.
+      end;
+
+      FreeAndNil(Tray);
+      Exit;
+    end;
+  end;
+
+  FreeAndNil(Tray);
 end;
 
 function TWindowsController.Start: Boolean;
@@ -132,14 +225,13 @@ var
   Path: String;
   Process: TProcess;
   ProcessId: Cardinal;
-  Registry: TRegistry;
 begin
   Result := False;
   FErrorMessage := 'Unhandled error';
 
   // Determine if Docker UI is already running in which case we do not need to
   // try to start it.
-  ProcessId := GetProcessId;
+  ProcessId := GetDockerUIProcessId;
 
   if ProcessId <> 0 then
   begin
@@ -149,26 +241,14 @@ begin
 
   // Determine the path to the Docker for Windows executable by reading it from
   // the Windows Registry and run it, if it exists.
-  Registry := TRegistry.Create;
-
-  try
-    Registry.RootKey := HKEY_LOCAL_MACHINE;
-
-    if Registry.OpenKeyReadOnly('\SOFTWARE\Docker Inc.\Docker\1.0') then
-      Path := Registry.ReadString('AppPath');
-  finally
-    Registry.Free;
-  end;
+  Path := GetDockerUIPath;
 
   if Path = '' then
   begin
     FErrorMessage := 'Failed to determine the path to the Docker UI executable';
     Exit;
-  end;
-
-  Path := Path + '\Docker for Windows.exe';
-
-  if not FileExists(Path) then
+  end
+  else if not FileExists(Path) then
   begin
     FErrorMessage := 'The Docker UI executable is missing';
     Exit;
@@ -186,20 +266,10 @@ begin
   // Wait for the Docker service to start responding to commands.
   for I := 1 to TIMEOUT do
   begin
-    try
-      Process := TProcess.Create(nil);
-      Process.Executable := 'docker';
-      Process.Parameters.Append('ps');
-      Process.Options := [poWaitOnExit, poUsePipes];
-      Process.Execute;
-
-      if Process.ExitCode = 0 then
-      begin
-        Result := True;
-        Exit;
-      end;
-    finally
-      Process.Free;
+    if IsDockerServiceRunning then
+    begin
+      Result := True;
+      Exit;
     end;
 
     Sleep(1000);
@@ -211,13 +281,11 @@ end;
 function TWindowsController.Stop: Boolean;
 const
   TIMEOUT = 120;
-  TIMEOUT_WINDOW = 10;
+  TIMEOUT_WINDOW = 5;
 var
   CursorPostion: TPoint;
   I: Integer;
   ProcessId: Cardinal;
-  Tray: TTray;
-  TrayClicked: Boolean;
   WindowHandle: Cardinal;
   WindowRect: TRect;
 begin
@@ -226,7 +294,7 @@ begin
 
   // Determine if Docker UI is not running in which case we do not need to try
   // to stop it.
-  ProcessId := GetProcessId;
+  ProcessId := GetDockerUIProcessId;
 
   if ProcessId = 0 then
   begin
@@ -234,69 +302,32 @@ begin
     Exit;
   end;
 
+  // Determine if the Docker service is in fact active as we otherwise need to
+  // assume that the virtual machine is booting in which case we should not try
+  // to terminate the Docker UI.
+  if not IsDockerServiceRunning then
+  begin
+    FErrorMessage := 'The Docker service is not running';
+    Exit;
+  end;
+
   // Simulate a right-click on the tray icon for the Docker UI application as we
   // need to make the popup menu (window) visible.
-  Tray := TTray.Create;
-  TrayClicked := False;
-
-  for I := 0 to Tray.TrayButtonCount - 1 do
+  if not ShowDockerUITrayMenu then
   begin
-    if Pos('Docker', Tray.TrayButton[I].Caption) > 0 then
-    begin
-      try
-        Tray.TrayButton[I].Popup;
-        TrayClicked := True;
-      except
-        on E: exception do
-        begin
-          FErrorMessage := E.Message;
-          Exit;
-        end;
-      end;
-
-      Break;
-    end;
-  end;
-
-  if not TrayClicked then
-  begin
-    for I := 0 to Tray.OverflowButtonCount - 1 do
-    begin
-      if Pos('Docker', Tray.OverflowButton[I].Caption) > 0 then
-      begin
-        try
-          Tray.OverflowButton[I].Popup;
-          TrayClicked := True;
-        except
-          on E: exception do
-          begin
-            FErrorMessage := E.Message;
-            Exit;
-          end;
-        end;
-
-        Break;
-      end;
-    end;
-  end;
-
-  Tray.Free;
-
-  if not TrayClicked then
-  begin
-    FErrorMessage := 'Failed to trigger the Docker UI''s tray popup menu';
+    FErrorMessage := 'Failed to trigger the Docker UI''s tray menu';
     Exit;
   end;
 
   // Determine the handle for the Docker UI tray menu window.
-  for I := 1 to TIMEOUT_WINDOW * 10 do
+  for I := 1 to TIMEOUT_WINDOW * 100 do
   begin
-    WindowHandle := GetTrayWindowHandle(ProcessId);
+    WindowHandle := GetDockerUITrayWindowHandle(ProcessId);
 
     if WindowHandle <> 0 then
       Break;
 
-    Sleep(100);
+    Sleep(10);
   end;
 
   if WindowHandle = 0 then
@@ -305,7 +336,7 @@ begin
     Exit;
   end;
 
-  // Simulate a mouse click on the 'Quit' menu item.
+  // Simulate a mouse click on the 'Quit' item in the Docker UI's tray menu.
   ShowWindow(WindowHandle, SW_SHOWNOACTIVATE);
   BringWindowToTop(WindowHandle);
 
@@ -324,10 +355,10 @@ begin
 
   // Wait for the Docker UI process to terminate but do not wait for too long as
   // this entire approach can easily fail, if a new version of the Docker UI is
-  // released.
+  // released with a re-organized tray menu.
   for I := 1 to TIMEOUT do
   begin
-    ProcessId := GetProcessId;
+    ProcessId := GetDockerUIProcessId;
 
     if ProcessId = 0 then
     begin
