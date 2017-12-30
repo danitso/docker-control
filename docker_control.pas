@@ -23,17 +23,17 @@ uses
 type
   { TDockerControl }
   TDockerControl = class(TCustomApplication)
-  protected
-    procedure DoRun; override;
-    procedure WriteUsageString;
-    procedure WriteVersionString;
-  public const
+  private const
     COMMAND_RESTART = 'restart';
     COMMAND_START = 'start';
     COMMAND_STOP = 'stop';
     COMMAND_VERSION = 'version';
     OPTION_VERSION_LONG = '--version';
     OPTION_VERSION_SHORT = '-v';
+  protected
+    procedure DoRun; override;
+    procedure WriteUsageString;
+    procedure WriteVersionString;
   end;
 
 { TDockerControl }

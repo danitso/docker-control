@@ -61,12 +61,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin\docker-control"/>
+      <Filename Value="bin\$(TargetCPU)\$(TargetOS)\docker-control"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="classes;interfaces"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)\$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

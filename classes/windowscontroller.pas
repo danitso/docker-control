@@ -17,6 +17,8 @@ uses
 type
   { TWindowsController }
   TWindowsController = class(TInterfacedObject, IControllerInterface)
+  private const
+    DOCKER_UI_EXE_NAME = 'Docker for Windows.exe';
   protected class var
     FWindowHandles: array of THandle;
     FWindowProcessHandles: array of THandle;
@@ -50,7 +52,7 @@ begin
     Registry.RootKey := HKEY_LOCAL_MACHINE;
 
     if Registry.OpenKeyReadOnly('\SOFTWARE\Docker Inc.\Docker\1.0') then
-      Result := Registry.ReadString('AppPath') + '\Docker for Windows.exe';
+      Result := Registry.ReadString('AppPath') + '\' + DOCKER_UI_EXE_NAME;
   finally
     FreeAndNil(Registry);
   end;
@@ -62,8 +64,6 @@ begin
 end;
 
 function TWindowsController.GetDockerUIProcessId: Cardinal;
-const
-  EXE_NAME = 'Docker for Windows.exe';
 var
   PE: TProcessEntry32;
   Snapshot: THandle;
@@ -80,7 +80,7 @@ begin
     begin
       while Process32Next(Snapshot, PE) do
       begin
-        if CompareText(PE.szExeFile, EXE_NAME) = 0 then
+        if CompareText(PE.szExeFile, DOCKER_UI_EXE_NAME) = 0 then
         begin
           Result := PE.th32ProcessID;
           Break;
