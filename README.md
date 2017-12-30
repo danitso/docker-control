@@ -4,12 +4,13 @@ A simple utility for controlling the Docker service.
 
 ## Motivation
 
-The utility was created due to a limitation in Docker for Windows 10 which prevents 
-users from controlling the Docker service from the command line.
+The utility was created due to a limitation in Docker for Windows 10 which
+prevents users from controlling the Docker service from the command line when
+running Linux containers.
 
 ## Requirements
 
-* Windows 10
+* Docker for Windows 10
 
 ## Usage
 
@@ -25,6 +26,19 @@ The commands are invoked like this:
 ```bash
 docker-control <command>
 ```
+
+## Known issues
+
+### Stopping the Docker service sometimes fails in Windows 10
+
+Due to the fact that the Docker for Windows UI appears to ignore common window
+messages, the only way to safely terminate it is by simulating a mouse click on
+the `Quit Docker` tray menu item. However, sometimes the tray icon ends up
+having the wrong state, especially if moving it to a new location in the tray's
+overflow section. This prevents the tray menu from being activated and thereby
+prevents the mouse click from being simulated.
+
+A fix for this issue is expected to be included in an upcoming release.
 
 ## Contributing
 
