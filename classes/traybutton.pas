@@ -44,20 +44,20 @@ uses
 
 procedure TTrayButton.Popup;
 const
-  TIMEOUT = 10;
+  TIMEOUT = 5;
 var
   Cols: Integer;
   CursorPostion: TPoint;
+  CursorPostionButton: TPoint;
+  CursorPostionNew: TPoint;
   I: Integer;
   PopupWindowHandle: HWND;
   PopupWindowPoint: POINT;
   Tray: TTray;
-  TrayButtonCount: Integer;
   TrayButtonX: Integer;
   TrayButtonY: Integer;
   WindowHandle: HWND;
   WindowRect: TRect;
-  Rows: Integer;
 begin
   // Typecast the Tray object to TTray to avoid having to use 'as' multiple
   // times.
@@ -68,15 +68,9 @@ begin
   // the tray class is fully implemented, it should be possible to simply use
   // the dimensions queried from the ToolbarWindow32 class.
   if FOverflow then
-  begin
-    TrayButtonCount := Tray.OverflowButtonCount;
-    WindowHandle := Tray.OverflowWindow;
-  end
+    WindowHandle := Tray.OverflowWindow
   else
-  begin
-    TrayButtonCount := Tray.TrayButtonCount;
     WindowHandle := Tray.TrayWindow;
-  end;
 
   // In case we are dealing with the overflow tray window, we need to ensure
   // that it is visible and the top most window at its location.
@@ -87,17 +81,13 @@ begin
   end;
 
   // Determine the dimensions of the tray window and calculate the number of
-  // columns and rows based on the button dimensions.
+  // columns based on the button dimensions.
   WindowRect.Create(0, 0, 0, 0);
 
   if not GetWindowRect(WindowHandle, WindowRect) then
     raise Exception.Create('Failed to determine the tray window position');
 
   Cols := WindowRect.Width div Self.Size.Width;
-  Rows := 1;
-
-  while (Cols * Rows < TrayButtonCount) do
-    Inc(Rows);
 
   // Calculate the desktop coordinates for the tray icon (the tool button).
   TrayButtonX := Self.Size.Width div 2 + ((FButtonIndex mod Cols) *
@@ -119,12 +109,12 @@ begin
   // that we cannot target the correct event listener.
   GetCursorPos(CursorPostion);
   SetCursorPos(WindowRect.Left + TrayButtonX, WindowRect.Top + TrayButtonY);
+  GetCursorPos(CursorPostionButton);
 
-  mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
-  mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
+  Mouse_Event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
+  Mouse_Event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
 
-  // Wait for the popup menu to appear before hiding the tray window and moving
-  // the cursor back to its previous location.
+  // Wait for the popup menu to appear before hiding the tray window.
   for I := 1 to TIMEOUT * 100 do
   begin
     if WindowFromPoint(PopupWindowPoint) <> PopupWindowHandle then
@@ -136,7 +126,12 @@ begin
   if FOverflow then
     ShowWindow(WindowHandle, SW_HIDE);
 
-  SetCursorPos(CursorPostion.x, CursorPostion.y);
+  // Move the cursor back to its original position, if the user has not moved it
+  // in the meantime.
+  GetCursorPos(CursorPostionNew);
+
+  if CursorPostionButton.Distance(CursorPostionNew) = 0 then
+    SetCursorPos(CursorPostion.x, CursorPostion.y);
 end;
 
 end.

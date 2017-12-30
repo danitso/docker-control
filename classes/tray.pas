@@ -6,7 +6,6 @@ interface
 
 uses
   Classes,
-  StrUtils,
   SysUtils,
   TrayButton,
   Windows;
@@ -241,9 +240,9 @@ procedure TTray.LoadButton(
 var
   BytesRead: QWord;
   I: Integer;
-  RawButton: Pointer;
-  RawResult: Boolean;
   ToolButton: TBBUTTON;
+  ToolButtonPointer: Pointer;
+  ToolButtonResult: Boolean;
   ToolCaption: AnsiString;
   TrayButton: TTrayButton;
 begin
@@ -257,13 +256,13 @@ begin
   // Initialize the local variables in order to avoid issues when passing them
   // as references.
   BytesRead := 0;
-  RawButton := nil;
-  RawResult := False;
+  ToolButtonPointer := nil;
+  ToolButtonResult := False;
 
   try
     // Allocate memory for a TBBUTTON structure in the application which owns
     // the toolbar window.
-    RawButton := Pointer(VirtualAllocEx(
+    ToolButtonPointer := Pointer(VirtualAllocEx(
       ProcessHandle,
       nil,
       SizeOf(ToolButton),
@@ -274,28 +273,28 @@ begin
     // Tell the external application to copy the TBBUTTON structure to the newly
     // allocated space.
     {$HINTS OFF}
-    RawResult := SendMessage(
+    ToolButtonResult := SendMessage(
       ToolBarWindow,
       TB_GETBUTTON,
       Index,
-      NativeInt(RawButton)
+      NativeInt(ToolButtonPointer)
     ) <> 0;
     {$HINTS ON}
 
-    if not RawResult then
+    if not ToolButtonResult then
       raise Exception.Create('Failed to retrieve TBBUTTON pointer');
 
     // Copy the TBBUTTON structure from the external application into the memory
     // space for this application in order to access it.
-    RawResult := ReadProcessMemory(
+    ToolButtonResult := ReadProcessMemory(
       ProcessHandle,
-      RawButton,
+      ToolButtonPointer,
       @ToolButton,
       SizeOf(ToolButton),
       BytesRead
     );
 
-    if not RawResult then
+    if not ToolButtonResult then
       raise Exception.Create('Failed to retrieve TBBUTTON struct');
 
     // Extract the image index from the TBBUTTON structure and store it in the
@@ -304,15 +303,16 @@ begin
 
     // Extract the button's caption and while these may actually be indexes, we
     // simply assume that they are not, which is usually the case. We also
-    // ignore the fact that the caption is UTF-16 so we simply strip away any
-    // NULL characters which are not used as a string terminator.
+    // ignore the fact that the caption is UTF-16 and treats it as ANSI instead.
+    TrayButton.Caption := '';
+
     SetLength(ToolCaption, 1024);
     I := 0;
 
     while I < Length(ToolCaption) do
     begin
       {$HINTS OFF}
-      RawResult := ReadProcessMemory(
+      ToolButtonResult := ReadProcessMemory(
         ProcessHandle,
         Pointer(ToolButton.iString) + I,
         @ToolCaption[I + 1],
@@ -321,7 +321,7 @@ begin
       );
       {$HINTS ON}
 
-      if not RawResult then
+      if not ToolButtonResult then
         Break;
 
       if (ToolCaption[I] = #0) and (ToolCaption[I + 1] = #0) then
@@ -330,22 +330,30 @@ begin
         Break;
       end;
 
+      if ToolCaption[I] = #0 then
+        TrayButton.Caption := TrayButton.Caption + ToolCaption[I + 1]
+      else
+        TrayButton.Caption := TrayButton.Caption + '?';
+
       Inc(I, 2);
     end;
 
-    TrayButton.Caption := Trim(AnsiReplaceStr(ToolCaption, #0, ''));
+    // Extract the button's size by invoking TB_GETITEMRECT using memory
+    // allocated in the external application.
     TrayButton.Size := GetButtonSize(ProcessHandle, ToolBarWindow, Index);
 
+    // Add the button to the list as we should have spotted errors by now, if
+    // some had occurred.
     ButtonList.Add(TrayButton);
   except
     on E: exception do
       TrayButton.Free;
   end;
 
-  if RawButton <> nil then
+  if ToolButtonPointer <> nil then
   begin
-    if not VirtualFreeEx(ProcessHandle, RawButton, 0, MEM_RELEASE) then
-      raise Exception.Create('Failed to free TBBUTTON pointer');
+    if not VirtualFreeEx(ProcessHandle, ToolButtonPointer, 0, MEM_RELEASE) then
+      raise Exception.Create('Failed to free TBBUTTON struct');
   end;
 end;
 
@@ -367,7 +375,7 @@ begin
   OwnerProcessId := 0;
 
   if GetWindowThreadProcessId(ToolBarWindow, OwnerProcessId) = 0 then
-    raise Exception.Create('Failed to find tray owner window handle');
+    raise Exception.Create('Failed to find tray owner''s window handle');
 
   // Create new TTrayButton instances based on the tool button structures.
   try
