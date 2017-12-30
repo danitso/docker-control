@@ -4,13 +4,13 @@ A simple utility for controlling the Docker service.
 
 ## Motivation
 
-The utility was created due to a limitation in Docker for Windows 10 which
+The utility was created due to a limitation in Docker for Windows which
 prevents users from controlling the Docker service from the command line when
 running Linux containers.
 
 ## Requirements
 
-* Docker for Windows 10
+* Docker for Windows
 
 ## Usage
 
