@@ -75,9 +75,9 @@ than 1 CPU or more than the total number of available CPU cores.
 
 The amount of RAM (in megabytes) to allocate for the virtual machine.
 
-**Warning**: While the command accepts any integer, we strongly recommend that
-you allocate at least 1024 MB and that you increment the allocation in steps of
-256 MB (1024 MB, 1280 MB, 1536 MB etc.).
+**Warning**: While the command accepts any integer, you must never allocate less
+than 1024 MB of RAM. Also, it is strongly recommended to specify a value which
+is a multiple of 256 MB (1024 MB, 1280 MB, 1536 MB etc.).
 
 ## Contributing
 
