@@ -44,8 +44,7 @@ Whether to start the Docker service when a user logs in.
 
 ### daemon.autoupdate
 
-Whether to automatically update the Docker service when a new version is
-released.
+Whether to automatically update Docker when a new version is released.
 
 ### daemon.dns
 
@@ -76,22 +75,9 @@ than 1 CPU or more than the total number of available CPU cores.
 
 The amount of RAM (in megabytes) to allocate for the virtual machine.
 
-**Warning**: While the commands accepts any integer, we strongly recommend that
-you stick with the options from the Docker UI. These options begin at 1024 MB
-and are incremented in steps of 256 MB.
-
-## Known issues
-
-### Stopping the Docker service sometimes fails in Windows 10
-
-Due to the fact that the Docker for Windows UI appears to ignore common window
-messages, the only way to safely terminate it is by simulating a mouse click on
-the `Quit Docker` tray menu item. However, sometimes the tray icon ends up
-having the wrong state, especially if moving it to a new location in the tray's
-overflow section. This prevents the tray menu from being activated and thereby
-prevents the mouse click from being simulated.
-
-A fix for this issue is expected to be included in an upcoming release.
+**Warning**: While the command accepts any integer, we strongly recommend that
+you allocate at least 1024 MB and that you increment the allocation in steps of
+256 MB (1024 MB, 1280 MB, 1536 MB etc.).
 
 ## Contributing
 
