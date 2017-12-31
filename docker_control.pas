@@ -9,6 +9,7 @@ uses
     {$ENDIF}
   {$ENDIF}
   ControllerInterface,
+  DockerConfiguration,
   {$IFDEF MSWINDOWS}
   Tray,
   TrayButton,

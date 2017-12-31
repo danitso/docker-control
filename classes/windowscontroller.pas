@@ -7,8 +7,7 @@ interface
 uses
   Classes,
   ControllerInterface,
-  FpJson,
-  JsonConf,
+  DockerConfiguration,
   JwaTlHelp32,
   Process,
   Registry,
@@ -28,30 +27,38 @@ type
   protected
     FErrorMessage: string;
 
-    function GetDockerUIConfigObject: TJSONConfig;
+    function GetDockerUIConfigObject: TDockerConfiguration;
     function GetDockerUIConfigPath: String;
     function GetDockerUIPath: String;
     function GetDockerUIProcessId: Cardinal;
     function GetDockerUITrayButton(const Tray: TTray): TTrayButton;
+
+    function GetOptionCategoryAndName(
+      const Name: String;
+      var OptionCategory,OptionName: String
+    ): Boolean;
+    function GetOptionDaemon(const Name: String): String;
+    function GetOptionNetwork(const Name: String): String;
+    function GetOptionProxy(const Name: String): String;
+    function GetOptionVM(const Name: String): String;
+
     function IsDockerServiceRunning: Boolean;
     function IsDockerUIStarting: Boolean;
+
+    procedure SetOptionDaemon(const Name, Value: String);
+    procedure SetOptionNetwork(const Name, Value: String);
+    procedure SetOptionProxy(const Name, Value: String);
+    procedure SetOptionVM(const Name, Value: String);
+
     function ShowDockerUITrayMenu: HWND;
+
     function WaitForDockerUIStartup(const Timeout: Integer): Boolean;
     function WaitForDockerUITrayButton(const Timeout: Integer): Boolean;
   public
     function GetErrorMessage: String;
 
     function GetOption(const Name: String): String;
-    function GetOptionCategoryAndName(
-      const Name: String;
-      var OptionCategory,OptionName: String
-    ): Boolean;
-    function GetOptionDaemon(const Name: String): String;
-    function GetOptionVM(const Name: String): String;
-
     procedure SetOption(const Name, Value: String);
-    procedure SetOptionDaemon(const Name, Value: String);
-    procedure SetOptionVM(const Name, Value: String);
 
     function Restart: Boolean;
     function Start: Boolean;
@@ -60,16 +67,9 @@ type
 
 implementation
 
-function TWindowsController.GetDockerUIConfigObject: TJSONConfig;
+function TWindowsController.GetDockerUIConfigObject: TDockerConfiguration;
 begin
-  Result := TJSONConfig.Create(nil);
-  Result.FileName := GetDockerUIConfigPath;
-  Result.Formatted := True;
-  Result.FormatOptions := [
-    foSingleLineArray,
-    foSingleLineObject,
-    foSkipWhiteSpace
-  ];
+  Result := TDockerConfiguration.Create(GetDockerUIConfigPath);
 end;
 
 function TWindowsController.GetDockerUIConfigPath: String;
@@ -178,6 +178,10 @@ begin
   // Read the option based on the category.
   if OptionCategory = 'daemon' then
     Result := GetOptionDaemon(OptionName)
+  else if OptionCategory = 'network' then
+    Result := GetOptionNetwork(OptionName)
+  else if OptionCategory = 'proxy' then
+    Result := GetOptionProxy(OptionName)
   else if OptionCategory = 'vm' then
     Result := GetOptionVM(OptionName)
   else
@@ -209,35 +213,80 @@ function TWindowsController.GetOptionDaemon(const Name: String): String;
 const
   CATEGORY = 'daemon';
 var
-  DataConfig: TJSONConfig;
+  Config: TDockerConfiguration;
 begin
   try
-    DataConfig := GetDockerUIConfigObject;
+    Config := GetDockerUIConfigObject;
 
     if Name = 'autostart' then
-      Result := LowerCase(DataConfig.GetValue('/StartAtLogin', True).ToString(
-        TUseBoolStrs.True))
+      Result := BoolToStr(Config.AutoStart, 'true', 'false')
     else if Name = 'autoupdate' then
-      Result := LowerCase(DataConfig.GetValue('/AutoUpdateEnabled',
-        True).ToString(TUseBoolStrs.True))
-    else if Name = 'dns' then
-      Result := String(DataConfig.GetValue('/NameServer', '8.8.8.8'))
+      Result := BoolToStr(Config.AutoUpdate, 'true', 'false')
     else if Name = 'expose' then
-      Result := LowerCase(DataConfig.GetValue('/ExposeTcp', False).ToString(
-        TUseBoolStrs.True))
-    else if Name = 'forward_dns' then
-      Result := LowerCase(DataConfig.GetValue('/UseDnsForwarder',
-        False).ToString(TUseBoolStrs.True))
+      Result := BoolToStr(Config.Expose, 'true', 'false')
     else if Name = 'tracking' then
-      Result := LowerCase(DataConfig.GetValue('/IsTracking', True).ToString(
-        TUseBoolStrs.True))
+      Result := BoolToStr(Config.Tracking, 'true', 'false')
     else
       raise Exception.Create(Format('Invalid option ''%s.%s''', [
         CATEGORY,
         Name
       ]));
   finally
-    FreeAndNil(DataConfig);
+    FreeAndNil(Config);
+  end;
+end;
+
+function TWindowsController.GetOptionNetwork(const Name: String): String;
+const
+  CATEGORY = 'network';
+var
+  Config: TDockerConfiguration;
+begin
+  try
+    Config := GetDockerUIConfigObject;
+
+    if Name = 'dns' then
+      Result := Config.Dns
+    else if Name = 'forward_dns' then
+      Result := BoolToStr(Config.ForwardDns, 'true', 'false')
+    else if Name = 'subnet_address' then
+      Result := Config.SubnetAddress
+    else if Name = 'subnet_mask_size' then
+      Result := IntToStr(Config.SubnetMaskSize)
+    else
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+  finally
+    FreeAndNil(Config);
+  end;
+end;
+
+function TWindowsController.GetOptionProxy(const Name: String): String;
+const
+  CATEGORY = 'proxy';
+var
+  Config: TDockerConfiguration;
+begin
+  try
+    Config := GetDockerUIConfigObject;
+
+    if Name = 'exclude' then
+      Result := Config.ExcludedProxyHostnames
+    else if Name = 'insecure' then
+      Result := Config.InsecureProxy
+    else if Name = 'secure' then
+      Result := Config.SecureProxy
+    else if Name = 'use' then
+      Result := BoolToStr(Config.UseProxy, 'true', 'false')
+    else
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+  finally
+    FreeAndNil(Config);
   end;
 end;
 
@@ -245,22 +294,22 @@ function TWindowsController.GetOptionVM(const Name: String): String;
 const
   CATEGORY = 'vm';
 var
-  DataConfig: TJSONConfig;
+  Config: TDockerConfiguration;
 begin
   try
-    DataConfig := GetDockerUIConfigObject;
+    Config := GetDockerUIConfigObject;
 
-    if Name = 'cpus' then
-      Result := DataConfig.GetValue('/VmCpus', 2).ToString
-    else if Name = 'memory' then
-      Result := DataConfig.GetValue('/VmMemory', 2048).ToString
+    if Name = 'memory' then
+      Result := IntToStr(Config.Memory)
+    else if Name = 'processors' then
+      Result := IntToStr(Config.Processors)
     else
       raise Exception.Create(Format('Invalid option ''%s.%s''', [
         CATEGORY,
         Name
       ]));
   finally
-    FreeAndNil(DataConfig);
+    FreeAndNil(Config);
   end;
 end;
 
@@ -323,6 +372,10 @@ begin
   // Read the option based on the category.
   if OptionCategory = 'daemon' then
     SetOptionDaemon(OptionName, Value)
+  else if OptionCategory = 'network' then
+    SetOptionNetwork(OptionName, Value)
+  else if OptionCategory = 'proxy' then
+    SetOptionProxy(OptionName, Value)
   else if OptionCategory = 'vm' then
     SetOptionVM(OptionName, Value)
   else
@@ -336,48 +389,31 @@ procedure TWindowsController.SetOptionDaemon(const Name, Value: String);
 const
   CATEGORY = 'daemon';
 var
-  DataConfig: TJSONConfig;
-  DataValue: String;
+  Config: TDockerConfiguration;
+  NewValue: String;
 begin
   try
-    DataConfig := GetDockerUIConfigObject;
+    Config := GetDockerUIConfigObject;
 
     if Name = 'autostart' then
     begin
-      DataConfig.SetValue('/StartAtLogin', StrToBool(Value));
-      DataValue := LowerCase(DataConfig.GetValue('/StartAtLogin',
-        True).ToString(TUseBoolStrs.True));
+      Config.AutoStart := StrToBool(Value);
+      NewValue := BoolToStr(Config.AutoStart, 'true', 'false');
     end
     else if Name = 'autoupdate' then
     begin
-      DataConfig.SetValue('/AutoUpdateEnabled', StrToBool(Value));
-      DataValue := LowerCase(DataConfig.GetValue('/AutoUpdateEnabled',
-        True).ToString(TUseBoolStrs.True));
-    end
-    else if Name = 'dns' then
-    begin
-      {$WARNINGS OFF}
-      DataConfig.SetValue('/NameServer', Value);
-      {$WARNINGS ON}
-      DataValue := Value;
+      Config.AutoUpdate := StrToBool(Value);
+      NewValue := BoolToStr(Config.AutoUpdate, 'true', 'false');
     end
     else if Name = 'expose' then
     begin
-      DataConfig.SetValue('/ExposeTcp', StrToBool(Value));
-      DataValue := LowerCase(DataConfig.GetValue('/ExposeTcp',
-        False).ToString(TUseBoolStrs.True));
-    end
-    else if Name = 'forward_dns' then
-    begin
-      DataConfig.SetValue('/UseDnsForwarder', StrToBool(Value));
-      DataValue := LowerCase(DataConfig.GetValue('/UseDnsForwarder',
-        True).ToString(TUseBoolStrs.True));
+      Config.Expose := StrToBool(Value);
+      NewValue := BoolToStr(Config.Expose, 'true', 'false');
     end
     else if Name = 'tracking' then
     begin
-      DataConfig.SetValue('/IsTracking', StrToBool(Value));
-      DataValue := LowerCase(DataConfig.GetValue('/IsTracking',
-        True).ToString(TUseBoolStrs.True));
+      Config.Tracking := StrToBool(Value);
+      NewValue := BoolToStr(Config.Tracking, 'true', 'false');
     end
     else
     begin
@@ -387,9 +423,97 @@ begin
       ]));
     end;
 
-    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, DataValue]));
+    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, NewValue]));
   finally
-    FreeAndNil(DataConfig);
+    FreeAndNil(Config);
+  end;
+end;
+
+procedure TWindowsController.SetOptionNetwork(const Name, Value: String);
+const
+  CATEGORY = 'network';
+var
+  Config: TDockerConfiguration;
+  NewValue: String;
+begin
+  try
+    Config := GetDockerUIConfigObject;
+
+    if Name = 'dns' then
+    begin
+      Config.Dns := Value;
+      NewValue := Value;
+    end
+    else if Name = 'forward_dns' then
+    begin
+      Config.ForwardDns := StrToBool(Value);
+      NewValue := BoolToStr(Config.ForwardDns, 'true', 'false');
+    end
+    else if Name = 'subnet_address' then
+    begin
+      Config.SubnetAddress := Value;
+      NewValue := Config.SubnetAddress;
+    end
+    else if Name = 'subnet_mask_size' then
+    begin
+      Config.SubnetMaskSize := StrToInt(Value);
+      NewValue := IntToStr(Config.SubnetMaskSize);
+    end
+    else
+    begin
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+    end;
+
+    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, NewValue]));
+  finally
+    FreeAndNil(Config);
+  end;
+end;
+
+procedure TWindowsController.SetOptionProxy(const Name, Value: String);
+const
+  CATEGORY = 'proxy';
+var
+  Config: TDockerConfiguration;
+  NewValue: String;
+begin
+  try
+    Config := GetDockerUIConfigObject;
+
+    if Name = 'exclude' then
+    begin
+      Config.ExcludedProxyHostnames := Value;
+      NewValue := Config.ExcludedProxyHostnames;
+    end
+    else if Name = 'insecure' then
+    begin
+      Config.InsecureProxy := Value;
+      NewValue := Config.InsecureProxy;
+    end
+    else if Name = 'secure' then
+    begin
+      Config.SecureProxy := Value;
+      NewValue := Config.SecureProxy;
+    end
+    else if Name = 'use' then
+    begin
+      Config.UseProxy := StrToBool(Value);
+      NewValue := BoolToStr(Config.UseProxy, 'true', 'false');
+    end
+    else
+    begin
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+    end;
+
+    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, NewValue]));
+  finally
+    FreeAndNil(Config);
   end;
 end;
 
@@ -397,21 +521,21 @@ procedure TWindowsController.SetOptionVM(const Name, Value: String);
 const
   CATEGORY = 'vm';
 var
-  DataConfig: TJSONConfig;
-  DataValue: String;
+  Config: TDockerConfiguration;
+  NewValue: String;
 begin
   try
-    DataConfig := GetDockerUIConfigObject;
+    Config := GetDockerUIConfigObject;
 
-    if Name = 'cpus' then
+    if Name = 'memory' then
     begin
-      DataConfig.SetValue('/VmCpus', StrToInt(Value));
-      DataValue := DataConfig.GetValue('/VmCpus', 2).ToString;
+      Config.Memory := StrToInt(Value);
+      NewValue := IntToStr(Config.Memory);
     end
-    else if Name = 'memory' then
+    else if Name = 'processors' then
     begin
-      DataConfig.SetValue('/VmMemory', StrToInt(Value));
-      DataValue := DataConfig.GetValue('/VmMemory', 2048).ToString;
+      Config.Processors := StrToInt(Value);
+      NewValue := IntToStr(Config.Processors);
     end
     else
     begin
@@ -421,9 +545,9 @@ begin
       ]));
     end;
 
-    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, DataValue]));
+    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, NewValue]));
   finally
-    FreeAndNil(DataConfig);
+    FreeAndNil(Config);
   end;
 end;
 

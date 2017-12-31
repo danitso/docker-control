@@ -46,30 +46,47 @@ Whether to start the Docker service when a user logs in.
 
 Whether to automatically update Docker when a new version is released.
 
-### daemon.dns
-
-The IP address of the default DNS server.
-
 ### daemon.expose
 
 Whether to expose a TCP socket for the Docker service.
 
 **Warning**: The socket being exposed does not use TLS encryption by default.
 
-### daemon.forward_dns
-
-Whether to use DNS forwarding.
-
 ### daemon.tracking
 
 Whether to allow anonymous usage statistics to be sent to the Docker team.
 
-### vm.cpus
+### network.dns
 
-The number of CPUs to allocate for the virtual machine.
+The IP address of the default DNS server.
 
-**Warning**: While the command accepts any integer, you must never allocate less
-than 1 CPU or more than the total number of available CPU cores.
+### network.forward_dns
+
+Whether to use DNS forwarding.
+
+### network.subnet_address
+
+The subnet address for the virtual network.
+
+### network.subnet_mask_size
+
+The subnet mask size for the virtual network.
+
+### proxy.exclude
+
+A list of hostnames which should bypass the proxy servers.
+
+### proxy.insecure
+
+The URL for an insecure proxy server.
+
+### proxy.secure
+
+The URL for a secure proxy server.
+
+### proxy.use
+
+Whether to use proxy servers when pulling images.
 
 ### vm.memory
 
@@ -78,6 +95,13 @@ The amount of RAM (in megabytes) to allocate for the virtual machine.
 **Warning**: While the command accepts any integer, you must never allocate less
 than 1024 MB of RAM. Also, it is strongly recommended to specify a value which
 is a multiple of 256 MB (1024 MB, 1280 MB, 1536 MB etc.).
+
+### vm.processors
+
+The number of processors to allocate for the virtual machine.
+
+**Warning**: While the command accepts any integer, you must never allocate less
+than 1 processor or more than the total number of available processors (cores).
 
 ## Contributing
 
