@@ -23,6 +23,7 @@ type
   { TDockerControl }
   TDockerControl = class(TCustomApplication)
   private const
+    COMMAND_CONFIG = 'config';
     COMMAND_RESTART = 'restart';
     COMMAND_START = 'start';
     COMMAND_STOP = 'stop';
@@ -31,7 +32,7 @@ type
     OPTION_VERSION_SHORT = '-v';
   protected
     procedure DoRun; override;
-    procedure WriteUsageString;
+    procedure WriteUsageString(const Args: array of String);
     procedure WriteVersionString;
   end;
 
@@ -44,9 +45,9 @@ var
 begin
   // Print the usage string, if more or less than one command line argument has
   // been specified.
-  if ParamCount <> 1 then
+  if ParamCount < 1 then
   begin
-    WriteUsageString;
+    WriteUsageString([]);
     Terminate(1);
     Exit;
   end;
@@ -68,7 +69,56 @@ begin
   // an error message in case the command fails.
   Command := ParamStr(1);
 
-  if Command = COMMAND_RESTART then
+  if Command = COMMAND_CONFIG then
+  begin
+    if ParamCount < 3 then
+    begin
+      WriteUsageString(['<get|set>', '<name>']);
+      Terminate(1);
+      Exit;
+    end;
+
+    if ParamStr(2) = 'get' then
+    begin
+      try
+        WriteLn(Controller.GetOption(ParamStr(3)));
+      except
+        on E: exception do
+        begin
+          WriteLn(Format('ERROR: %s', [E.Message]));
+          Terminate(1);
+          Exit;
+        end;
+      end;
+    end
+    else if ParamStr(2) = 'set' then
+    begin
+      if ParamCount < 4 then
+      begin
+        WriteUsageString([ParamStr(2), '<name>', '<value>']);
+        Terminate(1);
+        Exit;
+      end;
+
+      try
+        Controller.SetOption(ParamStr(3), ParamStr(4));
+      except
+        on E: exception do
+        begin
+          WriteLn(Format('ERROR: %s', [E.Message]));
+          Terminate(1);
+          Exit;
+        end;
+      end;
+    end
+    else
+    begin
+      WriteUsageString(['<get|set> <name>']);
+      Terminate(1);
+      Exit;
+    end;
+  end
+  else if Command = COMMAND_RESTART then
   begin
     WriteLn('Restarting the Docker service');
 
@@ -110,7 +160,7 @@ begin
   else
   begin
     WriteLn(Format('ERROR: Unknown command ''%s''', [Command]));
-    WriteUsageString;
+    WriteUsageString([]);
     Terminate(1);
     Exit;
   end;
@@ -121,7 +171,7 @@ begin
   Terminate;
 end;
 
-procedure TDockerControl.WriteUsageString;
+procedure TDockerControl.WriteUsageString(const Args: array of String);
 var
   Command: String;
   Index: Integer;
@@ -135,13 +185,31 @@ begin
     Command := Copy(Command, 1, Index - 1);
 
   // Write the usage string to the standard output stream.
-  WriteLn(Format('Usage: %s <%s|%s|%s|%s>', [
-    Command,
-    COMMAND_START,
-    COMMAND_STOP,
-    COMMAND_RESTART,
-    COMMAND_VERSION
-  ]));
+  if ParamCount > 0 then
+  begin
+    Write(Format('Usage: %s %s', [
+      Command,
+      ParamStr(1)
+    ]));
+
+    for Index := 0 to High(Args) do
+    begin
+      Write(' ' + Args[Index]);
+    end;
+
+    WriteLn;
+  end
+  else
+  begin
+    WriteLn(Format('Usage: %s <%s|%s|%s|%s|%s>', [
+      Command,
+      COMMAND_CONFIG,
+      COMMAND_START,
+      COMMAND_STOP,
+      COMMAND_RESTART,
+      COMMAND_VERSION
+    ]));
+  end;
 end;
 
 procedure TDockerControl.WriteVersionString;

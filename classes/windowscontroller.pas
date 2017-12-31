@@ -5,7 +5,10 @@ unit WindowsController;
 interface
 
 uses
+  Classes,
   ControllerInterface,
+  FpJson,
+  JsonConf,
   JwaTlHelp32,
   Process,
   Registry,
@@ -25,6 +28,8 @@ type
   protected
     FErrorMessage: string;
 
+    function GetDockerUIConfigObject: TJSONConfig;
+    function GetDockerUIConfigPath: String;
     function GetDockerUIPath: String;
     function GetDockerUIProcessId: Cardinal;
     function GetDockerUITrayButton(const Tray: TTray): TTrayButton;
@@ -35,12 +40,43 @@ type
     function WaitForDockerUITrayButton(const Timeout: Integer): Boolean;
   public
     function GetErrorMessage: String;
+
+    function GetOption(const Name: String): String;
+    function GetOptionCategoryAndName(
+      const Name: String;
+      var OptionCategory,OptionName: String
+    ): Boolean;
+    function GetOptionDaemon(const Name: String): String;
+    function GetOptionVM(const Name: String): String;
+
+    procedure SetOption(const Name, Value: String);
+    procedure SetOptionDaemon(const Name, Value: String);
+    procedure SetOptionVM(const Name, Value: String);
+
     function Restart: Boolean;
     function Start: Boolean;
     function Stop: Boolean;
   end;
 
 implementation
+
+function TWindowsController.GetDockerUIConfigObject: TJSONConfig;
+begin
+  Result := TJSONConfig.Create(nil);
+  Result.FileName := GetDockerUIConfigPath;
+  Result.Formatted := True;
+  Result.FormatOptions := [
+    foSingleLineArray,
+    foSingleLineObject,
+    foSkipWhiteSpace
+  ];
+end;
+
+function TWindowsController.GetDockerUIConfigPath: String;
+begin
+  Result := SysUtils.GetEnvironmentVariable('appdata') +
+    '\Docker\settings.json';
+end;
 
 function TWindowsController.GetDockerUIPath: String;
 var
@@ -59,11 +95,6 @@ begin
   finally
     FreeAndNil(Registry);
   end;
-end;
-
-function TWindowsController.GetErrorMessage: String;
-begin
-  Result := FErrorMessage;
 end;
 
 function TWindowsController.GetDockerUIProcessId: Cardinal;
@@ -128,6 +159,111 @@ begin
   end;
 end;
 
+function TWindowsController.GetErrorMessage: String;
+begin
+  Result := FErrorMessage;
+end;
+
+function TWindowsController.GetOption(const Name: String): String;
+var
+  OptionCategory: String;
+  OptionName: String;
+begin
+  Result := '';
+
+  // Split the option name into a lowercase category and name.
+  if not GetOptionCategoryAndName(Name, OptionCategory, OptionName) then
+    raise Exception.Create(Format('Invalid option ''%s''', [LowerCase(Name)]));
+
+  // Read the option based on the category.
+  if OptionCategory = 'daemon' then
+    Result := GetOptionDaemon(OptionName)
+  else if OptionCategory = 'vm' then
+    Result := GetOptionVM(OptionName)
+  else
+    raise Exception.Create(Format('Invalid option ''%s.%s''', [
+      OptionCategory,
+      OptionName
+    ]));
+end;
+
+function TWindowsController.GetOptionCategoryAndName(
+  const Name: String;
+  var OptionCategory,OptionName: String
+): Boolean;
+var
+  Index: Integer;
+begin
+  Result := False;
+  Index := Pos('.', Name);
+
+  if Index <> 0 then
+  begin
+    OptionCategory := LowerCase(Copy(Name, 1, Index - 1));
+    OptionName := LowerCase(Copy(Name, Index + 1, Length(Name)));
+    Result := True;
+  end;
+end;
+
+function TWindowsController.GetOptionDaemon(const Name: String): String;
+const
+  CATEGORY = 'daemon';
+var
+  DataConfig: TJSONConfig;
+begin
+  try
+    DataConfig := GetDockerUIConfigObject;
+
+    if Name = 'autostart' then
+      Result := LowerCase(DataConfig.GetValue('/StartAtLogin', True).ToString(
+        TUseBoolStrs.True))
+    else if Name = 'autoupdate' then
+      Result := LowerCase(DataConfig.GetValue('/AutoUpdateEnabled',
+        True).ToString(TUseBoolStrs.True))
+    else if Name = 'dns' then
+      Result := String(DataConfig.GetValue('/NameServer', '8.8.8.8'))
+    else if Name = 'expose' then
+      Result := LowerCase(DataConfig.GetValue('/ExposeTcp', False).ToString(
+        TUseBoolStrs.True))
+    else if Name = 'forward_dns' then
+      Result := LowerCase(DataConfig.GetValue('/UseDnsForwarder',
+        False).ToString(TUseBoolStrs.True))
+    else if Name = 'tracking' then
+      Result := LowerCase(DataConfig.GetValue('/IsTracking', True).ToString(
+        TUseBoolStrs.True))
+    else
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+  finally
+    FreeAndNil(DataConfig);
+  end;
+end;
+
+function TWindowsController.GetOptionVM(const Name: String): String;
+const
+  CATEGORY = 'vm';
+var
+  DataConfig: TJSONConfig;
+begin
+  try
+    DataConfig := GetDockerUIConfigObject;
+
+    if Name = 'cpus' then
+      Result := DataConfig.GetValue('/VmCpus', 2).ToString
+    else if Name = 'memory' then
+      Result := DataConfig.GetValue('/VmMemory', 2048).ToString
+    else
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+  finally
+    FreeAndNil(DataConfig);
+  end;
+end;
+
 function TWindowsController.IsDockerServiceRunning: Boolean;
 var
   Process: TProcess;
@@ -173,6 +309,122 @@ begin
     Exit;
 
   Result := Self.Start;
+end;
+
+procedure TWindowsController.SetOption(const Name, Value: String);
+var
+  OptionCategory: String;
+  OptionName: String;
+begin
+  // Split the option name into a lowercase category and name.
+  if not GetOptionCategoryAndName(Name, OptionCategory, OptionName) then
+    raise Exception.Create(Format('Invalid option ''%s''', [LowerCase(Name)]));
+
+  // Read the option based on the category.
+  if OptionCategory = 'daemon' then
+    SetOptionDaemon(OptionName, Value)
+  else if OptionCategory = 'vm' then
+    SetOptionVM(OptionName, Value)
+  else
+    raise Exception.Create(Format('Invalid option ''%s.%s''', [
+      OptionCategory,
+      OptionName
+    ]));
+end;
+
+procedure TWindowsController.SetOptionDaemon(const Name, Value: String);
+const
+  CATEGORY = 'daemon';
+var
+  DataConfig: TJSONConfig;
+  DataValue: String;
+begin
+  try
+    DataConfig := GetDockerUIConfigObject;
+
+    if Name = 'autostart' then
+    begin
+      DataConfig.SetValue('/StartAtLogin', StrToBool(Value));
+      DataValue := LowerCase(DataConfig.GetValue('/StartAtLogin',
+        True).ToString(TUseBoolStrs.True));
+    end
+    else if Name = 'autoupdate' then
+    begin
+      DataConfig.SetValue('/AutoUpdateEnabled', StrToBool(Value));
+      DataValue := LowerCase(DataConfig.GetValue('/AutoUpdateEnabled',
+        True).ToString(TUseBoolStrs.True));
+    end
+    else if Name = 'dns' then
+    begin
+      {$WARNINGS OFF}
+      DataConfig.SetValue('/NameServer', Value);
+      {$WARNINGS ON}
+      DataValue := Value;
+    end
+    else if Name = 'expose' then
+    begin
+      DataConfig.SetValue('/ExposeTcp', StrToBool(Value));
+      DataValue := LowerCase(DataConfig.GetValue('/ExposeTcp',
+        False).ToString(TUseBoolStrs.True));
+    end
+    else if Name = 'forward_dns' then
+    begin
+      DataConfig.SetValue('/UseDnsForwarder', StrToBool(Value));
+      DataValue := LowerCase(DataConfig.GetValue('/UseDnsForwarder',
+        True).ToString(TUseBoolStrs.True));
+    end
+    else if Name = 'tracking' then
+    begin
+      DataConfig.SetValue('/IsTracking', StrToBool(Value));
+      DataValue := LowerCase(DataConfig.GetValue('/IsTracking',
+        True).ToString(TUseBoolStrs.True));
+    end
+    else
+    begin
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+    end;
+
+    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, DataValue]));
+  finally
+    FreeAndNil(DataConfig);
+  end;
+end;
+
+procedure TWindowsController.SetOptionVM(const Name, Value: String);
+const
+  CATEGORY = 'vm';
+var
+  DataConfig: TJSONConfig;
+  DataValue: String;
+begin
+  try
+    DataConfig := GetDockerUIConfigObject;
+
+    if Name = 'cpus' then
+    begin
+      DataConfig.SetValue('/VmCpus', StrToInt(Value));
+      DataValue := DataConfig.GetValue('/VmCpus', 2).ToString;
+    end
+    else if Name = 'memory' then
+    begin
+      DataConfig.SetValue('/VmMemory', StrToInt(Value));
+      DataValue := DataConfig.GetValue('/VmMemory', 2048).ToString;
+    end
+    else
+    begin
+      raise Exception.Create(Format('Invalid option ''%s.%s''', [
+        CATEGORY,
+        Name
+      ]));
+    end;
+
+    WriteLn(Format('Changed %s.%s to ''%s''', [CATEGORY, Name, DataValue]));
+  finally
+    FreeAndNil(DataConfig);
+  end;
 end;
 
 function TWindowsController.ShowDockerUITrayMenu: HWND;
