@@ -26,7 +26,7 @@ type
     FParent: TObject;
     FSize: TSize;
   public
-    procedure Popup;
+    function Popup: HWND;
 
     property ButtonIndex: Integer read FButtonIndex write FButtonIndex;
     property Caption: AnsiString read FCaption write FCaption;
@@ -41,7 +41,7 @@ implementation
 uses
   Tray;
 
-procedure TTrayButton.Popup;
+function TTrayButton.Popup: HWND;
 const
   TIMEOUT = 5;
 var
@@ -51,6 +51,7 @@ var
   CursorPostionNew: TPoint;
   I: Integer;
   PopupWindowHandle: HWND;
+  PopupWindowHandleNew: HWND;
   PopupWindowPoint: POINT;
   Tray: TTray;
   TrayButtonX: Integer;
@@ -58,6 +59,8 @@ var
   WindowHandle: HWND;
   WindowRect: TRect;
 begin
+  Result := 0;
+
   // Typecast the Tray object to TTray to avoid having to use 'as' multiple
   // times.
   Tray := FParent as TTray;
@@ -75,7 +78,7 @@ begin
   // that it is visible and the top most window at its location.
   if FOverflow then
   begin
-    ShowWindow(WindowHandle, SW_SHOW);
+    ShowWindow(WindowHandle, SW_SHOWNOACTIVATE);
     BringWindowToTop(WindowHandle);
   end;
 
@@ -114,12 +117,20 @@ begin
   Mouse_Event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
 
   // Wait for the popup menu to appear before hiding the tray window.
-  for I := 1 to TIMEOUT * 100 do
+  for I := 1 to TIMEOUT * 1000 do
   begin
-    if WindowFromPoint(PopupWindowPoint) <> PopupWindowHandle then
-      Break;
+    PopupWindowHandleNew := WindowFromPoint(PopupWindowPoint);
 
-    Sleep(10);
+    if (PopupWindowHandleNew <> PopupWindowHandle) and
+      IsWindowVisible(PopupWindowHandleNew) and
+      (GetWindowLongPtr(PopupWindowHandleNew, GWL_STYLE) and WS_POPUP <> 0) then
+    begin
+      Result := PopupWindowHandleNew;
+      BringWindowToTop(Result);
+      Break;
+    end;
+
+    Sleep(1);
   end;
 
   if FOverflow then

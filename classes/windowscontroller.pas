@@ -28,10 +28,9 @@ type
     function GetDockerUIPath: String;
     function GetDockerUIProcessId: Cardinal;
     function GetDockerUITrayButton(const Tray: TTray): TTrayButton;
-    function GetDockerUITrayWindowHandle(const ProcessId: Cardinal): Cardinal;
     function IsDockerServiceRunning: Boolean;
     function IsDockerUIStarting: Boolean;
-    function ShowDockerUITrayMenu: Boolean;
+    function ShowDockerUITrayMenu: HWND;
     function WaitForDockerUIStartup(const Timeout: Integer): Boolean;
     function WaitForDockerUITrayButton(const Timeout: Integer): Boolean;
   public
@@ -129,53 +128,6 @@ begin
   end;
 end;
 
-function TWindowsController.GetDockerUITrayWindowHandle(
-  const ProcessId: Cardinal
-): Cardinal;
-var
-  Styles: Int64;
-  StylesExt: Int64;
-  WndProcessId: Cardinal;
-begin
-  Result := FindWindow(nil, nil);
-
-  while Result <> 0 do
-  begin
-    // Skip any windows which do not appear to be popups.
-    Styles := GetWindowLongPtr(Result, GWL_STYLE);
-
-    if Styles and WS_POPUP = 0 then
-    begin
-      Result := GetWindow(Result, GW_HWNDNEXT);
-      Continue;
-    end;
-
-    // Skip any windows which do not appear to control a parent window.
-    StylesExt := GetWindowLongPtr(Result, GWL_EXSTYLE);
-
-    if StylesExt and WS_EX_CONTROLPARENT = 0 then
-    begin
-      Result := GetWindow(Result, GW_HWNDNEXT);
-      Continue;
-    end;
-
-    // Skip any windows which do not belong to the specified process.
-    WndProcessId := 0;
-
-    if GetWindowThreadProcessId(Result, WndProcessId) = 0 then
-    begin
-      Result := GetWindow(Result, GW_HWNDNEXT);
-      Continue;
-    end
-    else if WndProcessId = ProcessId then
-    begin
-      Break;
-    end;
-
-    Result := GetWindow(Result, GW_HWNDNEXT);
-  end;
-end;
-
 function TWindowsController.IsDockerServiceRunning: Boolean;
 var
   Process: TProcess;
@@ -223,22 +175,19 @@ begin
   Result := Self.Start;
 end;
 
-function TWindowsController.ShowDockerUITrayMenu: Boolean;
+function TWindowsController.ShowDockerUITrayMenu: HWND;
 var
   Tray: TTray;
   TrayButton: TTrayButton;
 begin
-  Result := False;
+  Result := 0;
 
   try
     Tray := TTray.Create;
     TrayButton := GetDockerUITrayButton(Tray);
 
     if Assigned(TrayButton) then
-    begin
-      TrayButton.Popup;
-      Result := True;
-    end;
+      Result := TrayButton.Popup;
   finally
     FreeAndNil(Tray);
   end;
@@ -321,9 +270,9 @@ var
   ActiveWindowHandle: HWND;
   CursorPostion: TPoint;
   I: Integer;
+  PopupWindowHandle: HWND;
+  PopupWindowRect: TRect;
   ProcessId: Cardinal;
-  WindowHandle: Cardinal;
-  WindowRect: TRect;
 begin
   Result := False;
 
@@ -350,49 +299,53 @@ begin
   ActiveWindowHandle := GetForegroundWindow;
 
   // Simulate a right-click on the tray icon for the Docker UI application as we
-  // need to make the popup menu (window) visible.
-  if not ShowDockerUITrayMenu then
+  // need to trigger its tray menu.
+  PopupWindowHandle := ShowDockerUITrayMenu;
+
+  if PopupWindowHandle = 0 then
   begin
     SetForegroundWindow(ActiveWindowHandle);
     FErrorMessage := 'Failed to trigger the Docker UI''s tray menu';
     Exit;
   end;
 
-  // Determine the handle for the Docker UI tray menu window.
-  for I := 1 to TIMEOUT_WINDOW * 100 do
-  begin
-    WindowHandle := GetDockerUITrayWindowHandle(ProcessId);
+  // Determine the tray menu window's dimensions.
+  PopupWindowRect.Create(0, 0, 0, 0);
 
-    if WindowHandle <> 0 then
-      Break;
-
-    Sleep(10);
-  end;
-
-  if WindowHandle = 0 then
-  begin
-    SetForegroundWindow(ActiveWindowHandle);
-    FErrorMessage := 'Failed to find the Docker UI tray window';
-    Exit;
-  end;
-
-  // Simulate a mouse click on the 'Quit' item in the Docker UI's tray menu.
-  ShowWindow(WindowHandle, SW_SHOWNOACTIVATE);
-  BringWindowToTop(WindowHandle);
-
-  WindowRect.Create(0, 0, 0, 0);
-
-  if not GetWindowRect(WindowHandle, WindowRect) then
+  if not GetWindowRect(PopupWindowHandle, PopupWindowRect) then
   begin
     SetForegroundWindow(ActiveWindowHandle);
     FErrorMessage := 'Failed to determine the Docker UI tray window placement';
     Exit;
   end;
 
+  // Simulate a left click on the 'Quit Docker' tray menu item.
   GetCursorPos(CursorPostion);
-  SetCursorPos(WindowRect.Left + 10, WindowRect.Top + WindowRect.Height - 10);
+  SetCursorPos(
+    PopupWindowRect.Left + 8,
+    PopupWindowRect.Top + PopupWindowRect.Height - 8
+  );
 
   Mouse_Event(MOUSEEVENTF_ABSOLUTE or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+
+  // Wait for the tray menu to disappear before returning the cursor to its
+  // previous location and re-activating the previous window.
+  for I := 1 to TIMEOUT_WINDOW * 1000 do
+  begin
+    if not IsWindowVisible(PopupWindowHandle) then
+      Break;
+
+    Sleep(1);
+  end;
+
+  if IsWindowVisible(PopupWindowHandle) then
+  begin
+    SetForegroundWindow(ActiveWindowHandle);
+    SetCursorPos(CursorPostion.x, CursorPostion.y);
+
+    FErrorMessage := 'Failed to simulate a left click on the tray menu item';
+    Exit;
+  end;
 
   SetCursorPos(CursorPostion.x, CursorPostion.y);
   SetForegroundWindow(ActiveWindowHandle);
