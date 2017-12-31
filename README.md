@@ -55,7 +55,7 @@ The IP address of the default DNS server.
 
 Whether to expose a TCP socket for the Docker service.
 
-*Warning*: The socket being exposed does not use TLS encryption by default.
+**Warning**: The socket being exposed does not use TLS encryption by default.
 
 ### daemon.forward_dns
 
@@ -69,14 +69,14 @@ Whether to allow anonymous usage statistics to be sent to the Docker team.
 
 The number of CPUs to allocate for the virtual machine.
 
-*Warning*: While the command accepts any integer, you must never allocate less
+**Warning**: While the command accepts any integer, you must never allocate less
 than 1 CPU or more than the total number of available CPU cores.
 
 ### vm.memory
 
 The amount of RAM (in megabytes) to allocate for the virtual machine.
 
-*Warning*: While the commands accepts any integer, we strongly recommend that
+**Warning**: While the commands accepts any integer, we strongly recommend that
 you stick with the options from the Docker UI. These options begin at 1024 MB
 and are incremented in steps of 256 MB.
 
