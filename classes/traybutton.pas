@@ -5,7 +5,6 @@ unit TrayButton;
 interface
 
 uses
-  Classes,
   FGL,
   SysUtils,
   Windows;

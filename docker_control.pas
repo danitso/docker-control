@@ -15,7 +15,6 @@ uses
   WindowsController,
   WinPEImageReader,
   {$ENDIF}
-  Classes,
   CustApp,
   FileInfo,
   SysUtils;

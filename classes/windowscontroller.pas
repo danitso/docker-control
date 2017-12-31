@@ -5,13 +5,13 @@ unit WindowsController;
 interface
 
 uses
-  Classes,
   ControllerInterface,
   JwaTlHelp32,
   Process,
   Registry,
   SysUtils,
   Tray,
+  TrayButton,
   Windows;
 
 type
@@ -27,9 +27,13 @@ type
 
     function GetDockerUIPath: String;
     function GetDockerUIProcessId: Cardinal;
+    function GetDockerUITrayButton(const Tray: TTray): TTrayButton;
     function GetDockerUITrayWindowHandle(const ProcessId: Cardinal): Cardinal;
     function IsDockerServiceRunning: Boolean;
+    function IsDockerUIStarting: Boolean;
     function ShowDockerUITrayMenu: Boolean;
+    function WaitForDockerUIStartup(const Timeout: Integer): Boolean;
+    function WaitForDockerUITrayButton(const Timeout: Integer): Boolean;
   public
     function GetErrorMessage: String;
     function Restart: Boolean;
@@ -89,6 +93,39 @@ begin
     end;
   finally
     CloseHandle(Snapshot);
+  end;
+end;
+
+function TWindowsController.GetDockerUITrayButton(
+  const Tray: TTray
+): TTrayButton;
+const
+  CAPTION_PARTIAL = 'Docker';
+var
+  I: Integer;
+begin
+  Result := nil;
+
+  // Scan the visible tray button list for the button which belongs to the
+  // Docker UI.
+  for I := 0 to Tray.TrayButtonCount - 1 do
+  begin
+    if Pos(CAPTION_PARTIAL, Tray.TrayButton[I].Caption) > 0 then
+    begin
+      Result := Tray.TrayButton[I];
+      Exit;
+    end;
+  end;
+
+  // Scan the overflowing tray button list for the button which belongs to the
+  // Docker UI.
+  for I := 0 to Tray.OverflowButtonCount - 1 do
+  begin
+    if Pos(CAPTION_PARTIAL, Tray.OverflowButton[I].Caption) > 0 then
+    begin
+      Result := Tray.OverflowButton[I];
+      Exit;
+    end;
   end;
 end;
 
@@ -161,6 +198,21 @@ begin
   end;
 end;
 
+function TWindowsController.IsDockerUIStarting: Boolean;
+var
+  Tray: TTray;
+  TrayButton: TTrayButton;
+begin
+  try
+    Tray := TTray.Create;
+    TrayButton := GetDockerUITrayButton(Tray);
+    Result := Assigned(TrayButton) and
+              (Pos('starting', TrayButton.Caption) > 0);
+  finally
+    FreeAndNil(Tray);
+  end;
+end;
+
 function TWindowsController.Restart: Boolean;
 begin
   Result := Self.Stop;
@@ -173,64 +225,35 @@ end;
 
 function TWindowsController.ShowDockerUITrayMenu: Boolean;
 var
-  I: Integer;
   Tray: TTray;
+  TrayButton: TTrayButton;
 begin
   Result := False;
-  Tray := TTray.Create;
 
-  // Scan the visible tray button list for the button which belongs to the
-  // Docker UI.
-  for I := 0 to Tray.TrayButtonCount - 1 do
-  begin
-    if Pos('Docker', Tray.TrayButton[I].Caption) > 0 then
+  try
+    Tray := TTray.Create;
+    TrayButton := GetDockerUITrayButton(Tray);
+
+    if Assigned(TrayButton) then
     begin
-      try
-        Tray.TrayButton[I].Popup;
-        Result := True;
-      except
-        on exception do
-          // Ignore the exception.
-      end;
-
-      FreeAndNil(Tray);
-      Exit;
+      TrayButton.Popup;
+      Result := True;
     end;
+  finally
+    FreeAndNil(Tray);
   end;
-
-  // Scan the overflowing tray button list for the button which belongs to the
-  // Docker UI.
-  for I := 0 to Tray.OverflowButtonCount - 1 do
-  begin
-    if Pos('Docker', Tray.OverflowButton[I].Caption) > 0 then
-    begin
-      try
-        Tray.OverflowButton[I].Popup;
-        Result := True;
-      except
-        on exception do
-          // Ignore the exception.
-      end;
-
-      FreeAndNil(Tray);
-      Exit;
-    end;
-  end;
-
-  FreeAndNil(Tray);
 end;
 
 function TWindowsController.Start: Boolean;
 const
-  TIMEOUT = 120;
+  TIMEOUT_EXECUTE = 5;
+  TIMEOUT_STARTUP = 120;
 var
-  I: Integer;
   Path: String;
   Process: TProcess;
   ProcessId: Cardinal;
 begin
   Result := False;
-  FErrorMessage := 'Unhandled error';
 
   // Determine if Docker UI is already running in which case we do not need to
   // try to start it.
@@ -266,24 +289,33 @@ begin
     Process.Free;
   end;
 
-  // Wait for the Docker service to start responding to commands.
-  for I := 1 to TIMEOUT do
+  // Wait for the Docker UI to begin its startup phase.
+  if not WaitForDockerUITrayButton(TIMEOUT_EXECUTE) then
   begin
-    if IsDockerServiceRunning then
-    begin
-      Result := True;
-      Exit;
-    end;
-
-    Sleep(1000);
+    FErrorMessage := 'Timeout exceeded for Docker UI execution';
+    Exit;
   end;
 
-  FErrorMessage := 'Failed to start the Docker service';
+  // Wait for the Docker UI to complete its startup phase.
+  if not WaitForDockerUIStartup(TIMEOUT_STARTUP) then
+  begin
+    FErrorMessage := 'Timeout exceeded for Docker UI startup phase';
+    Exit;
+  end;
+
+  // Verify that the Docker service is in fact running and responding.
+  if not IsDockerServiceRunning then
+  begin
+    FErrorMessage := 'Failed to communicate with the Docker service';
+    Exit;
+  end;
+
+  Result := True;
 end;
 
 function TWindowsController.Stop: Boolean;
 const
-  TIMEOUT = 120;
+  TIMEOUT_TERMINATE = 120;
   TIMEOUT_WINDOW = 5;
 var
   ActiveWindowHandle: HWND;
@@ -294,7 +326,6 @@ var
   WindowRect: TRect;
 begin
   Result := False;
-  FErrorMessage := 'Unhandled error';
 
   // Determine if Docker UI is not running in which case we do not need to try
   // to stop it.
@@ -361,7 +392,7 @@ begin
   GetCursorPos(CursorPostion);
   SetCursorPos(WindowRect.Left + 10, WindowRect.Top + WindowRect.Height - 10);
 
-  mouse_event(MOUSEEVENTF_ABSOLUTE or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+  Mouse_Event(MOUSEEVENTF_ABSOLUTE or MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
 
   SetCursorPos(CursorPostion.x, CursorPostion.y);
   SetForegroundWindow(ActiveWindowHandle);
@@ -369,7 +400,7 @@ begin
   // Wait for the Docker UI process to terminate but do not wait for too long as
   // this entire approach can easily fail, if a new version of the Docker UI is
   // released with a re-organized tray menu.
-  for I := 1 to TIMEOUT do
+  for I := 1 to TIMEOUT_TERMINATE do
   begin
     ProcessId := GetDockerUIProcessId;
 
@@ -382,7 +413,54 @@ begin
     Sleep(1000);
   end;
 
-  FErrorMessage := 'Failed to terminate the Docker UI process';
+  FErrorMessage := 'Timeout exceeded for the Docker UI termination phase';
+end;
+
+function TWindowsController.WaitForDockerUIStartup(
+  const Timeout: Integer
+): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+
+  for I := 1 to Timeout do
+  begin
+    if not IsDockerUIStarting then
+    begin
+      Result := True;
+      Break;
+    end;
+
+    Sleep(1000);
+  end;
+end;
+
+function TWindowsController.WaitForDockerUITrayButton(
+  const Timeout: Integer
+): Boolean;
+var
+  I: Integer;
+  Tray: TTray;
+begin
+  Result := False;
+
+  for I := 1 to Timeout do
+  begin
+    try
+      Tray := TTray.Create;
+
+      if GetDockerUITrayButton(Tray) <> nil then
+      begin
+        Result := True;
+        Break;
+      end;
+    finally
+      FreeAndNil(Tray);
+    end;
+
+    Sleep(1000);
+  end;
 end;
 
 end.

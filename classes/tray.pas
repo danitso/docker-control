@@ -5,7 +5,6 @@ unit Tray;
 interface
 
 uses
-  Classes,
   SysUtils,
   TrayButton,
   Windows;
