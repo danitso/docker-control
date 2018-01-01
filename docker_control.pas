@@ -25,6 +25,7 @@ type
   TDockerControl = class(TCustomApplication)
   private const
     COMMAND_CONFIG = 'config';
+    COMMAND_RESET = 'reset';
     COMMAND_RESTART = 'restart';
     COMMAND_START = 'start';
     COMMAND_STOP = 'stop';
@@ -123,6 +124,17 @@ begin
       Exit;
     end;
   end
+  else if Command = COMMAND_RESET then
+  begin
+    WriteLn('Resetting the Docker service');
+
+    if not Controller.Reset then
+    begin
+      WriteLn(Format('ERROR: %s', [Controller.GetErrorMessage]));
+      Terminate(1);
+      Exit;
+    end;
+  end
   else if Command = COMMAND_RESTART then
   begin
     WriteLn('Restarting the Docker service');
@@ -206,12 +218,13 @@ begin
   end
   else
   begin
-    WriteLn(Format('Usage: %s <%s|%s|%s|%s|%s>', [
+    WriteLn(Format('Usage: %s <%s|%s|%s|%s|%s|%s>', [
       Command,
       COMMAND_CONFIG,
+      COMMAND_RESET,
+      COMMAND_RESTART,
       COMMAND_START,
       COMMAND_STOP,
-      COMMAND_RESTART,
       COMMAND_VERSION
     ]));
   end;

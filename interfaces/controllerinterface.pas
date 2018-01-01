@@ -13,6 +13,7 @@ type
     function GetOption(const Name: String): String;
     procedure SetOption(const Name, Value: String);
 
+    function Reset: Boolean;
     function Restart: Boolean;
     function Start: Boolean;
     function Stop: Boolean;

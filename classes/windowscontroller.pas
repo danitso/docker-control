@@ -46,6 +46,7 @@ type
     function GetOption(const Name: String): String;
     procedure SetOption(const Name, Value: String);
 
+    function Reset: Boolean;
     function Restart: Boolean;
     function Start: Boolean;
     function Stop: Boolean;
@@ -197,6 +198,22 @@ begin
   finally
     FreeAndNil(Tray);
   end;
+end;
+
+function TWindowsController.Reset: Boolean;
+var
+  ConfigFile: String;
+begin
+  Result := False;
+  ConfigFile := GetDockerUIConfigPath;
+
+  if FileExists(ConfigFile) and not SysUtils.DeleteFile(ConfigFile) then
+  begin
+    FErrorMessage := 'Failed to delete the Docker UI settings file';
+    Exit;
+  end;
+
+  Result := Restart;
 end;
 
 function TWindowsController.Restart: Boolean;

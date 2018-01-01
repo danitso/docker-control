@@ -17,9 +17,10 @@ running Linux containers.
 The following commands are available:
 
 * config
+* reset
+* restart
 * start
 * stop
-* restart
 * version
 
 The commands are invoked like this:
