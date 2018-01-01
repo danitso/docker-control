@@ -103,6 +103,10 @@ begin
 
       try
         Controller.SetOption(ParamStr(3), ParamStr(4));
+        WriteLn(Format('Changed %s to ''%s''', [
+          ParamStr(3),
+          Controller.GetOption(ParamStr(3))
+        ]));
       except
         on E: exception do
         begin

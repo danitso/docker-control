@@ -38,31 +38,41 @@ docker-control config set <name> <value>
 
 See the list of configuration values below.
 
-### daemon.autostart
+### advanced.cpus
 
-Whether to start the Docker service when a user logs in.
+The number of CPUs to allocate for the virtual machine.
 
-### daemon.autoupdate
+### advanced.memory
+
+The amount of memory (in megabytes) to allocate for the virtual machine.
+
+### advanced.vhd_path
+
+The absolute path to the VHD file for the virtual machine.
+
+### general.autostart
+
+Whether to start Docker when a user logs in.
+
+### general.autoupdate
 
 Whether to automatically update Docker when a new version is released.
 
-### daemon.expose
+### general.expose_daemon
 
-Whether to expose a TCP socket for the Docker service.
+Whether to expose an insecure TCP socket for the Docker daemon.
 
-**Warning**: The socket being exposed does not use TLS encryption by default.
-
-### daemon.tracking
+### general.tracking
 
 Whether to allow anonymous usage statistics to be sent to the Docker team.
 
-### network.dns
-
-The IP address of the default DNS server.
-
-### network.forward_dns
+### network.dns_forwarding
 
 Whether to use DNS forwarding.
+
+### network.dns_server
+
+The IP address of the primary DNS server.
 
 ### network.subnet_address
 
@@ -72,36 +82,21 @@ The subnet address for the virtual network.
 
 The subnet mask size for the virtual network.
 
-### proxy.exclude
-
-A list of hostnames which should bypass the proxy servers.
-
-### proxy.insecure
-
-The URL for an insecure proxy server.
-
-### proxy.secure
-
-The URL for a secure proxy server.
-
-### proxy.use
+### proxies.enabled
 
 Whether to use proxy servers when pulling images.
 
-### vm.memory
+### proxies.excluded_hostnames
 
-The amount of RAM (in megabytes) to allocate for the virtual machine.
+A comma separated list of hostnames which should bypass the proxy servers.
 
-**Warning**: While the command accepts any integer, you must never allocate less
-than 1024 MB of RAM. Also, it is strongly recommended to specify a value which
-is a multiple of 256 MB (1024 MB, 1280 MB, 1536 MB etc.).
+### proxies.secure_web_server
 
-### vm.processors
+The URL for a secure proxy server (HTTPS).
 
-The number of processors to allocate for the virtual machine.
+### proxies.web_server
 
-**Warning**: While the command accepts any integer, you must never allocate less
-than 1 processor or more than the total number of available processors (cores).
+The URL for an insecure proxy server (HTTP).
 
 ## Contributing
 
