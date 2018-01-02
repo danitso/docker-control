@@ -101,12 +101,16 @@ The URL for a secure proxy server (HTTPS).
 
 ### shared_drives.credentials
 
-The username and password to use when accessing the shared drives. The values
-must be specified in the format `computername\username:password`.
+The username and password to use when accessing the shared drives.
+
+The value must be specified as `username:password` or
+`computername\username:password`. The username will be prefixed with the current
+computer name, if the former format is used.
 
 ### shared_drives.letters
 
-A comma separated list of shared drive letters.
+A comma separated list of drive letters for the drives, which will be used for
+host mapped volumes.
 
 **WARNING**: This does not currently enable/disable drive sharing.
 
