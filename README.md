@@ -65,7 +65,7 @@ Whether to expose an insecure TCP socket for the Docker daemon.
 
 ### general.tracking
 
-Whether to allow anonymous usage statistics to be sent to the Docker team.
+Whether to allow anonymous usage data to be sent to the Docker team.
 
 ### network.dns_forwarding
 
@@ -91,13 +91,26 @@ Whether to use proxy servers when pulling images.
 
 A comma separated list of hostnames which should bypass the proxy servers.
 
-### proxies.secure_web_server
+### proxies.insecure_server
+
+The URL for an insecure proxy server (HTTP).
+
+### proxies.secure_server
 
 The URL for a secure proxy server (HTTPS).
 
-### proxies.web_server
+### shared_drives.credentials
 
-The URL for an insecure proxy server (HTTP).
+The username and password to use when accessing the shared drives. The values
+must be separated by a colon (`username:password`).
+
+**WARNING**: This has not been implemented yet.
+
+### shared_drives.letters
+
+A comma separated list of shared drive letters.
+
+**WARNING**: This does not currently enable/disable drive sharing.
 
 ## Contributing
 

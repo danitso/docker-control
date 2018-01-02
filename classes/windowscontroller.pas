@@ -209,7 +209,7 @@ begin
 
   if FileExists(ConfigFile) and not SysUtils.DeleteFile(ConfigFile) then
   begin
-    FErrorMessage := 'Failed to delete the Docker UI settings file';
+    FErrorMessage := 'Failed to delete the settings file';
     Exit;
   end;
 
