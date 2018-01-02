@@ -102,9 +102,7 @@ The URL for a secure proxy server (HTTPS).
 ### shared_drives.credentials
 
 The username and password to use when accessing the shared drives. The values
-must be separated by a colon (`username:password`).
-
-**WARNING**: This has not been implemented yet.
+must be specified in the format `computername\username:password`.
 
 ### shared_drives.letters
 

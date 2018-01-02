@@ -6,6 +6,8 @@ interface
 
 uses
   {$IFDEF MSWINDOWS}
+  JwaWinCred,
+  JwaWinCrypt,
   Windows,
   {$ENDIF}
   Classes,
@@ -17,12 +19,19 @@ type
   { TExplodeArray }
   TExplodeArray = array of String;
 
+  { TSharedCredentials }
+  TSharedCredentials = record
+    Username: String;
+    Password: String;
+  end;
+
   { TSharedDrives }
   TSharedDrives = array of Char;
 
   { TDockerConfiguration }
   TDockerConfiguration = class
   private const
+    CREDENTIALS_TARGET = 'Docker Host Filesystem Access';
     JSON_PATH_AUTOSTART = '/StartAtLogin';
     JSON_PATH_AUTOUPDATE = '/AutoUpdateEnabled';
     JSON_PATH_DNS = '/NameServer';
@@ -71,6 +80,7 @@ type
     function GetMemory: Integer;
     function GetProcessors: Integer;
     function GetSecureProxy: String;
+    function GetSharedCredentials: TSharedCredentials;
     function GetSharedDrives: TSharedDrives;
     function GetSubnetAddress: String;
     function GetSubnetMaskSize: Byte;
@@ -88,6 +98,7 @@ type
     procedure SetMemory(const Value: Integer);
     procedure SetProcessors(const Value: Integer);
     procedure SetSecureProxy(const Value: String);
+    procedure SetSharedCredentials(const Value: TSharedCredentials);
     procedure SetSharedDrives(const Value: TSharedDrives);
     procedure SetSubnetAddress(const Value: String);
     procedure SetSubnetMaskSize(const Value: Byte);
@@ -112,6 +123,8 @@ type
     property Memory: Integer read GetMemory write SetMemory;
     property Processors: Integer read GetProcessors write SetProcessors;
     property SecureProxy: String read GetSecureProxy write SetSecureProxy;
+    property SharedCredentials: TSharedCredentials read GetSharedCredentials
+      write SetSharedCredentials;
     property SharedDrives: TSharedDrives read GetSharedDrives
       write SetSharedDrives;
     property SubnetAddress: String read GetSubnetAddress write SetSubnetAddress;
@@ -252,6 +265,7 @@ end;
 function TDockerConfiguration.GetOption(const Name: string): String;
 var
   I: Integer;
+  SharedCredentials: TSharedCredentials;
   SharedDrives: TSharedDrives;
 begin
   Result := '';
@@ -296,7 +310,14 @@ begin
 
   // Shared Drives
   else if Name = OPTION_SHARED_DRIVES_CREDENTIALS then
-    raise ENotImplemented.Create('Configuration value not implemented')
+  begin
+    SharedCredentials := GetSharedCredentials;
+
+    if Length(SharedCredentials.Username) > 0 then
+      Result := SharedCredentials.Username + ':' + SharedCredentials.Password
+    else
+      Result := '';
+  end
   else if Name = OPTION_SHARED_DRIVES_LETTERS then
   begin
     Result := '';
@@ -333,6 +354,58 @@ begin
       Result := DEFAULT_VALUE;
   end;
   {$WARNINGS ON}
+end;
+
+function TDockerConfiguration.GetSharedCredentials: TSharedCredentials;
+var
+  Credentials: PCREDENTIAL;
+  DecryptedDataBlob: DATA_BLOB;
+  EncryptedData: String;
+  EncryptedDataBlob: DATA_BLOB;
+  Success: BOOL;
+begin
+  Result.Username := '';
+  Result.Password := '';
+
+  try
+    // Retrieve the credentials using the Windows Credential API.
+    Success := CredRead(CREDENTIALS_TARGET, CRED_TYPE_GENERIC, 0, Credentials);
+
+    if not Success then
+    begin
+      if GetLastError <> 1168 then
+        raise Exception.Create('Failed to retrieve the credentials');
+
+      Exit;
+    end;
+
+    // Extract the username which is simply stored as plain text.
+    Result.Username := Credentials^.UserName;
+
+    // Extract the encrypted credentials blob by copying the byte array.
+    SetLength(EncryptedData, Credentials^.CredentialBlobSize);
+    CopyMemory(@EncryptedData[1], Credentials^.CredentialBlob,
+      Credentials^.CredentialBlobSize);
+
+    // Decrypt the credentials using the Windows Cryptography API.
+    DecryptedDataBlob.cbData := 0;
+    DecryptedDataBlob.pbData := nil;
+    EncryptedDataBlob.cbData := Length(EncryptedData);
+    EncryptedDataBlob.pbData := @EncryptedData[1];
+
+    Success := CryptUnprotectData(@EncryptedDataBlob, nil, nil, nil, nil, 0,
+      @DecryptedDataBlob);
+
+    if not Success then
+      raise Exception.Create('Failed to decrypt the credentials');
+
+    SetLength(Result.Password, DecryptedDataBlob.cbData);
+    CopyMemory(@Result.Password[1], DecryptedDataBlob.pbData,
+      DecryptedDataBlob.cbData);
+  finally
+    if Assigned(Credentials) then
+      CredFree(Credentials);
+  end;
 end;
 
 function TDockerConfiguration.GetSharedDrives: TSharedDrives;
@@ -456,6 +529,7 @@ end;
 
 procedure TDockerConfiguration.SetOption(const Name,Value: String);
 var
+  Credentials: TSharedCredentials;
   DriveLetter: String;
   DriveLetters: TSharedDrives;
   Values: TExplodeArray;
@@ -531,7 +605,22 @@ begin
 
   // Shared Drives
   else if Name = OPTION_SHARED_DRIVES_CREDENTIALS then
-    raise ENotImplemented.Create('Configuration value not implemented')
+  begin
+    I := Pos(':', Value);
+
+    if I = 0 then
+      raise Exception.Create('The credentials must be specified as ' +
+        '''computername\username:password''');
+
+    Credentials.Username := Copy(Value, 1, I - 1);
+    Credentials.Password := Copy(Value, I + 1, Length(Value));
+
+    if Pos('\', Credentials.Username) = 0 then
+      raise Exception.Create('The credentials must be specified as ' +
+        '''computername\username:password''');
+
+    SharedCredentials := Credentials;
+  end
   else if Name = OPTION_SHARED_DRIVES_LETTERS then
   begin
     SetLength(DriveLetters, 0);
@@ -583,6 +672,45 @@ begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_SECURE_PROXY, Value);
   {$WARNINGS ON}
+end;
+
+procedure TDockerConfiguration.SetSharedCredentials(
+  const Value: TSharedCredentials
+);
+var
+  Credentials: CREDENTIAL;
+  DataBlob: DATA_BLOB;
+  EncryptedDataBlob: DATA_BLOB;
+  Success: BOOL;
+begin
+  // Encrypt the credentials using the Windows Cryptography API.
+  DataBlob.cbData := Length(Value.Password);
+  DataBlob.pbData := @Value.Password[1];
+
+  EncryptedDataBlob.cbData := 0;
+  EncryptedDataBlob.pbData := nil;
+
+  Success := CryptProtectData(@DataBlob, nil, nil, nil, nil, 0,
+    @EncryptedDataBlob);
+
+  if not Success then
+    raise Exception.Create('Failed to encrypt the credentials');
+
+  // Write the credentials using the Windows Credential API.
+  Credentials.AttributeCount := 0;
+  Credentials.Attributes := nil;
+  Credentials.CredentialBlob := EncryptedDataBlob.pbData;
+  Credentials.CredentialBlobSize := EncryptedDataBlob.cbData;
+  Credentials.Flags := 0;
+  Credentials.Persist := CRED_PERSIST_ENTERPRISE;
+  Credentials.TargetName := CREDENTIALS_TARGET;
+  Credentials.Type_ := CRED_TYPE_GENERIC;
+  Credentials.UserName := PChar(Value.Username);
+
+  Success := CredWrite(@Credentials, 0);
+
+  if not Success then
+    raise Exception.Create('Failed to save the credentials');
 end;
 
 procedure TDockerConfiguration.SetSharedDrives(const Value: TSharedDrives);
