@@ -6,9 +6,7 @@ interface
 
 uses
   Classes,
-  ConfigurationInterface,
-  FpJson,
-  JsonConf,
+  DockerConfiguration,
   JwaWinCred,
   JwaWinCrypt,
   StringFunctions,
@@ -18,11 +16,12 @@ uses
 
 type
   { TWindowsConfiguration }
-  TWindowsConfiguration = class(TInterfacedObject, IConfigurationInterface)
+  TWindowsConfiguration = class(TDockerConfiguration)
   private const
     CREDENTIALS_TARGET = 'Docker Host Filesystem Access';
     JSON_PATH_AUTOSTART = '/StartAtLogin';
     JSON_PATH_AUTOUPDATE = '/AutoUpdateEnabled';
+    JSON_PATH_DISK_IMAGE = '/MobyVhdPathOverride';
     JSON_PATH_DNS = '/NameServer';
     JSON_PATH_EXCLUDED_PROXY_HOSTNAMES = '/ProxyExclude';
     JSON_PATH_EXPOSE = '/ExposeTcp';
@@ -36,27 +35,14 @@ type
     JSON_PATH_SUBNET_MASK_SIZE = '/SubnetMaskSize';
     JSON_PATH_TRACKING = '/IsTracking';
     JSON_PATH_USE_PROXY = '/UseHttpProxy';
-    JSON_PATH_VHD_PATH = '/MobyVhdPathOverride';
-    OPTION_ADVANCED_CPUS = 'advanced.cpus';
-    OPTION_ADVANCED_MEMORY = 'advanced.memory';
-    OPTION_ADVANCED_VHD_PATH = 'advanced.vhd_path';
-    OPTION_GENERAL_AUTOSTART = 'general.autostart';
-    OPTION_GENERAL_AUTOUPDATE = 'general.autoupdate';
     OPTION_GENERAL_EXPOSE_DAEMON = 'general.expose_daemon';
-    OPTION_GENERAL_TRACKING = 'general.tracking';
     OPTION_NETWORK_DNS_FORWARDING = 'network.dns_forwarding';
     OPTION_NETWORK_DNS_SERVER = 'network.dns_server';
     OPTION_NETWORK_SUBNET_ADDRESS = 'network.subnet_address';
     OPTION_NETWORK_SUBNET_MASK_SIZE = 'network.subnet_mask_size';
-    OPTION_PROXIES_ENABLED = 'proxies.enabled';
-    OPTION_PROXIES_EXCLUDED_HOSTNAMES = 'proxies.excluded_hostnames';
-    OPTION_PROXIES_INSECURE_SERVER = 'proxies.insecure_server';
-    OPTION_PROXIES_SECURE_SERVER = 'proxies.secure_server';
     OPTION_SHARED_DRIVES_CREDENTIALS = 'shared_drives.credentials';
     OPTION_SHARED_DRIVES_LETTERS = 'shared_drives.letters';
   protected
-    FConfig: TJSONConfig;
-
     function GetAutoStart: Boolean;
     function GetAutoUpdate: Boolean;
     function GetDns: String;
@@ -93,11 +79,8 @@ type
     procedure SetUseProxy(const Value: Boolean);
     procedure SetVhdPath(const Value: String);
   public
-    constructor Create(const FileName: String);
-    destructor Destroy; override;
-
-    function GetOption(const Name: string): String;
-    procedure SetOption(const Name, Value: String);
+    function GetOption(const Name: string): String; override;
+    procedure SetOption(const Name, Value: String); override;
 
     property AutoStart: Boolean read GetAutoStart write SetAutoStart;
     property AutoUpdate: Boolean read GetAutoUpdate write SetAutoUpdate;
@@ -123,37 +106,6 @@ type
   end;
 
 implementation
-
-constructor TWindowsConfiguration.Create(const FileName: String);
-begin
-  inherited Create;
-
-  // Create a new TJSONConfig instance and load the Docker configuration.
-  FConfig := TJSONConfig.Create(nil);
-
-  try
-    FConfig.FileName := FileName;
-    FConfig.Formatted := True;
-    FConfig.FormatOptions := [
-      foSingleLineArray,
-      foSingleLineObject,
-      foSkipWhiteSpace
-    ];
-  except
-    on E: exception do
-    begin
-      FreeAndNil(FConfig);
-      raise E;
-    end;
-  end;
-end;
-
-destructor TWindowsConfiguration.Destroy;
-begin
-  FreeAndNil(FConfig);
-
-  inherited;
-end;
 
 function TWindowsConfiguration.GetAutoStart: Boolean;
 begin
@@ -236,7 +188,7 @@ begin
     Result := IntToStr(Processors)
   else if Name = OPTION_ADVANCED_MEMORY then
     Result := IntToStr(Memory)
-  else if Name = OPTION_ADVANCED_VHD_PATH then
+  else if Name = OPTION_ADVANCED_DISK_IMAGE then
     Result := VhdPath
 
   // General
@@ -448,7 +400,7 @@ const
 begin
   {$WARNINGS OFF}
   try
-    Result := FConfig.GetValue(JSON_PATH_VHD_PATH, DEFAULT_VALUE);
+    Result := FConfig.GetValue(JSON_PATH_DISK_IMAGE, DEFAULT_VALUE);
   except
     on exception do
       Result := DEFAULT_VALUE;
@@ -536,7 +488,7 @@ begin
 
     Memory := I;
   end
-  else if Name = OPTION_ADVANCED_VHD_PATH then
+  else if Name = OPTION_ADVANCED_DISK_IMAGE then
   begin
     VhdPath := Value;
   end
@@ -756,7 +708,7 @@ end;
 procedure TWindowsConfiguration.SetVhdPath(const Value: String);
 begin
   {$WARNINGS OFF}
-  FConfig.SetValue(JSON_PATH_VHD_PATH, Value);
+  FConfig.SetValue(JSON_PATH_DISK_IMAGE, Value);
   {$WARNINGS ON}
 end;
 

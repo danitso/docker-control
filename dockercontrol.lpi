@@ -30,7 +30,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="9">
+    <Units Count="11">
       <Unit0>
         <Filename Value="dockercontrol.pas"/>
         <IsPartOfProject Value="True"/>
@@ -76,6 +76,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="WindowsShares"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="src\classes\common\dockerconfiguration.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="DockerConfiguration"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="src\classes\mac\maccontroller.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="MacController"/>
+      </Unit10>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -86,7 +96,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src\interfaces;src\interfaces\common;src\classes\windows;src\classes\common"/>
+      <OtherUnitFiles Value="src\interfaces;src\interfaces\common;src\classes\windows;src\classes\common;src\classes\mac"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)\$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

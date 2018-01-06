@@ -86,13 +86,13 @@ The following configuration values are supported.
 
 The number of CPUs to allocate for the virtual machine.
 
+#### advanced.disk_image
+
+The absolute path to the disk image for the virtual machine.
+
 #### advanced.memory
 
 The amount of memory (in megabytes) to allocate for the virtual machine.
-
-#### advanced.vhd_path
-
-The absolute path to the VHD file for the virtual machine.
 
 #### general.autostart
 

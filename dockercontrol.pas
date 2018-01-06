@@ -9,6 +9,9 @@ uses
     cthreads,
     {$ENDIF}
   {$ENDIF}
+  {$IFDEF DARWIN}
+  MacController,
+  {$ENDIF}
   {$IFDEF MSWINDOWS}
   Tray,
   TrayButton,
@@ -20,6 +23,7 @@ uses
   ConfigurationInterface,
   ControllerInterface,
   CustApp,
+  DockerConfiguration,
   FileInfo,
   StringFunctions,
   SysUtils;
@@ -73,9 +77,13 @@ begin
   {$IFDEF MSWINDOWS}
   FController := TWindowsController.Create;
   {$ELSE}
-  WriteErrorString('Unsupported operating system');
-  Terminate(EXIT_CODE_ERROR);
-  Exit;
+    {$IFDEF DARWIN}
+    FController := TMacController.Create;
+    {$ELSE}
+    WriteErrorString('Unsupported operating system');
+    Terminate(EXIT_CODE_ERROR);
+    Exit;
+    {$ENDIF}
   {$ENDIF}
 
   // Perform the specified command, if it is valid.
