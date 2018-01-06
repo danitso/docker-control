@@ -12,7 +12,7 @@ running Linux containers.
 
 1. [Installation](#installation)
 1. [Usage](#usage)
-    1. [Commands](#config)
+    1. [Commands](#commands)
     1. [Values](#values)
 1. [License](#license)
 
