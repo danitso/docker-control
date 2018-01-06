@@ -1,6 +1,6 @@
 # Docker Control
 
-A simple command line utility for controlling Docker for Windows.
+A command line utility for controlling Docker for Windows.
 
 ## Motivation
 
