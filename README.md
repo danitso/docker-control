@@ -146,7 +146,7 @@ The URL for a secure proxy server (HTTPS).
 
 The username and password to use when accessing the shared drives.
 
-The value must be specified as `username:password` or
+**Note:** The value must be specified as `username:password` or
 `computername\username:password`. The username will be prefixed with the current
 computer name, if the former format is used.
 
