@@ -53,7 +53,7 @@ docker-control config set <name> <value>
 See the [Values](#values) section for a list of supported configuration values.
 
 **Note**: Changes to configuration values will first take effect once the Docker
-service is restarted. This command will not trigger a rstart as users may wish
+service is restarted. This command will not trigger a restart as users may wish
 to delay this action.
 
 #### reset
