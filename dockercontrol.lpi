@@ -17,7 +17,7 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MajorVersionNr Value="1"/>
-      <StringTable CompanyName="Danitso" FileDescription="Controller for the Docker service" LegalCopyright="Danitso" OriginalFilename="docker-control.exe" ProductName="Docker Control"/>
+      <StringTable CompanyName="Danitso" FileDescription="Controls the Docker service" LegalCopyright="Danitso" OriginalFilename="$MakeExe(docker-control)" ProductName="Docker Control"/>
     </VersionInfo>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
@@ -30,36 +30,52 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="6">
+    <Units Count="9">
       <Unit0>
-        <Filename Value="docker_control.pas"/>
+        <Filename Value="dockercontrol.pas"/>
         <IsPartOfProject Value="True"/>
+        <UnitName Value="DockerControl"/>
       </Unit0>
       <Unit1>
-        <Filename Value="classes\windowscontroller.pas"/>
+        <Filename Value="src\classes\windows\windowscontroller.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="WindowsController"/>
       </Unit1>
       <Unit2>
-        <Filename Value="interfaces\controllerinterface.pas"/>
+        <Filename Value="src\interfaces\common\controllerinterface.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="ControllerInterface"/>
       </Unit2>
       <Unit3>
-        <Filename Value="classes\tray.pas"/>
+        <Filename Value="src\classes\windows\tray.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="Tray"/>
       </Unit3>
       <Unit4>
-        <Filename Value="classes\traybutton.pas"/>
+        <Filename Value="src\classes\windows\traybutton.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="TrayButton"/>
       </Unit4>
       <Unit5>
-        <Filename Value="classes\dockerconfiguration.pas"/>
+        <Filename Value="src\classes\windows\windowsconfiguration.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="DockerConfiguration"/>
+        <UnitName Value="WindowsConfiguration"/>
       </Unit5>
+      <Unit6>
+        <Filename Value="src\classes\common\stringfunctions.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="StringFunctions"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="src\interfaces\common\configurationinterface.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="ConfigurationInterface"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="src\classes\windows\windowsshares.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="WindowsShares"/>
+      </Unit8>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -70,7 +86,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="classes;interfaces"/>
+      <OtherUnitFiles Value="src\interfaces;src\interfaces\common;src\classes\windows;src\classes\common"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)\$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

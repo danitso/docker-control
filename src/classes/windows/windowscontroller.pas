@@ -6,15 +6,16 @@ interface
 
 uses
   Classes,
+  ConfigurationInterface,
   ControllerInterface,
-  DockerConfiguration,
   JwaTlHelp32,
   Process,
   Registry,
   SysUtils,
   Tray,
   TrayButton,
-  Windows;
+  Windows,
+  WindowsConfiguration;
 
 type
   { TWindowsController }
@@ -27,7 +28,7 @@ type
   protected
     FErrorMessage: string;
 
-    function GetDockerUIConfigObject: TDockerConfiguration;
+    function GetDockerUIConfigObject: IConfigurationInterface;
     function GetDockerUIConfigPath: String;
     function GetDockerUIPath: String;
     function GetDockerUIProcessId: Cardinal;
@@ -54,9 +55,9 @@ type
 
 implementation
 
-function TWindowsController.GetDockerUIConfigObject: TDockerConfiguration;
+function TWindowsController.GetDockerUIConfigObject: IConfigurationInterface;
 begin
-  Result := TDockerConfiguration.Create(GetDockerUIConfigPath);
+  Result := TWindowsConfiguration.Create(GetDockerUIConfigPath);
 end;
 
 function TWindowsController.GetDockerUIConfigPath: String;
@@ -153,14 +154,10 @@ end;
 
 function TWindowsController.GetOption(const Name: String): String;
 var
-  Config: TDockerConfiguration;
+  Config: IConfigurationInterface;
 begin
-  try
-    Config := GetDockerUIConfigObject;
-    Result := Config.GetOption(Name);
-  finally
-    FreeAndNil(Config);
-  end;
+  Config := GetDockerUIConfigObject;
+  Result := Config.GetOption(Name);
 end;
 
 function TWindowsController.IsDockerServiceRunning: Boolean;
@@ -228,14 +225,10 @@ end;
 
 procedure TWindowsController.SetOption(const Name, Value: String);
 var
-  Config: TDockerConfiguration;
+  Config: IConfigurationInterface;
 begin
-  try
-    Config := GetDockerUIConfigObject;
-    Config.SetOption(Name, Value);
-  finally
-    FreeAndNil(Config);
-  end;
+  Config := GetDockerUIConfigObject;
+  Config.SetOption(Name, Value);
 end;
 
 function TWindowsController.ShowDockerUITrayMenu: HWND;
@@ -440,6 +433,7 @@ var
 begin
   Result := False;
 
+  // Wait for the Docker UI to start.
   for I := 1 to Timeout do
   begin
     if not IsDockerUIStarting then
@@ -461,6 +455,7 @@ var
 begin
   Result := False;
 
+  // Wait for the Docker UI tray button to appear.
   for I := 1 to Timeout do
   begin
     try

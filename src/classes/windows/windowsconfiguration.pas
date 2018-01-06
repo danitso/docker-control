@@ -1,35 +1,24 @@
-unit DockerConfiguration;
+unit WindowsConfiguration;
 
 {$MODE DELPHI}
 
 interface
 
 uses
-  {$IFDEF MSWINDOWS}
-  JwaWinCred,
-  JwaWinCrypt,
-  Windows,
-  {$ENDIF}
   Classes,
+  ConfigurationInterface,
   FpJson,
   JsonConf,
-  SysUtils;
+  JwaWinCred,
+  JwaWinCrypt,
+  StringFunctions,
+  SysUtils,
+  Windows,
+  WindowsShares;
 
 type
-  { TExplodeArray }
-  TExplodeArray = array of String;
-
-  { TSharedCredentials }
-  TSharedCredentials = record
-    Username: String;
-    Password: String;
-  end;
-
-  { TSharedDrives }
-  TSharedDrives = array of Char;
-
-  { TDockerConfiguration }
-  TDockerConfiguration = class
+  { TWindowsConfiguration }
+  TWindowsConfiguration = class(TInterfacedObject, IConfigurationInterface)
   private const
     CREDENTIALS_TARGET = 'Docker Host Filesystem Access';
     JSON_PATH_AUTOSTART = '/StartAtLogin';
@@ -68,8 +57,6 @@ type
   protected
     FConfig: TJSONConfig;
 
-    function Explode(const Delimiter: String; Value: String): TExplodeArray;
-
     function GetAutoStart: Boolean;
     function GetAutoUpdate: Boolean;
     function GetDns: String;
@@ -80,8 +67,8 @@ type
     function GetMemory: Integer;
     function GetProcessors: Integer;
     function GetSecureProxy: String;
-    function GetSharedCredentials: TSharedCredentials;
-    function GetSharedDrives: TSharedDrives;
+    function GetSharedCredentials: TWindowsCredentials;
+    function GetSharedDrives: TWindowsDriveLetters;
     function GetSubnetAddress: String;
     function GetSubnetMaskSize: Byte;
     function GetTracking: Boolean;
@@ -98,8 +85,8 @@ type
     procedure SetMemory(const Value: Integer);
     procedure SetProcessors(const Value: Integer);
     procedure SetSecureProxy(const Value: String);
-    procedure SetSharedCredentials(const Value: TSharedCredentials);
-    procedure SetSharedDrives(const Value: TSharedDrives);
+    procedure SetSharedCredentials(const Value: TWindowsCredentials);
+    procedure SetSharedDrives(const Value: TWindowsDriveLetters);
     procedure SetSubnetAddress(const Value: String);
     procedure SetSubnetMaskSize(const Value: Byte);
     procedure SetTracking(const Value: Boolean);
@@ -110,7 +97,7 @@ type
     destructor Destroy; override;
 
     function GetOption(const Name: string): String;
-    procedure SetOption(const Name,Value: String);
+    procedure SetOption(const Name, Value: String);
 
     property AutoStart: Boolean read GetAutoStart write SetAutoStart;
     property AutoUpdate: Boolean read GetAutoUpdate write SetAutoUpdate;
@@ -123,9 +110,9 @@ type
     property Memory: Integer read GetMemory write SetMemory;
     property Processors: Integer read GetProcessors write SetProcessors;
     property SecureProxy: String read GetSecureProxy write SetSecureProxy;
-    property SharedCredentials: TSharedCredentials read GetSharedCredentials
+    property SharedCredentials: TWindowsCredentials read GetSharedCredentials
       write SetSharedCredentials;
-    property SharedDrives: TSharedDrives read GetSharedDrives
+    property SharedDrives: TWindowsDriveLetters read GetSharedDrives
       write SetSharedDrives;
     property SubnetAddress: String read GetSubnetAddress write SetSubnetAddress;
     property SubnetMaskSize: Byte read GetSubnetMaskSize
@@ -137,7 +124,7 @@ type
 
 implementation
 
-constructor TDockerConfiguration.Create(const FileName: String);
+constructor TWindowsConfiguration.Create(const FileName: String);
 begin
   inherited Create;
 
@@ -161,50 +148,24 @@ begin
   end;
 end;
 
-destructor TDockerConfiguration.Destroy;
+destructor TWindowsConfiguration.Destroy;
 begin
   FreeAndNil(FConfig);
 
   inherited;
 end;
 
-function TDockerConfiguration.Explode(
-  const Delimiter: String;
-  Value: String
-): TExplodeArray;
-var
-  Index: Integer;
-begin
-  SetLength(Result, 0);
-  Index := Pos(Delimiter, Value);
-
-  while Index <> 0 do
-  begin
-    SetLength(Result, Length(Result) + 1);
-    Result[High(Result)] := Copy(Value, 1, Index - 1);
-
-    Value := Copy(Value, Index + Length(Delimiter), Length(Value));
-    Index := Pos(Delimiter, Value);
-  end;
-
-  if Value <> '' then
-  begin
-    SetLength(Result, Length(Result) + 1);
-    Result[High(Result)] := Value;
-  end;
-end;
-
-function TDockerConfiguration.GetAutoStart: Boolean;
+function TWindowsConfiguration.GetAutoStart: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_AUTOSTART, True);
 end;
 
-function TDockerConfiguration.GetAutoUpdate: Boolean;
+function TWindowsConfiguration.GetAutoUpdate: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_AUTOUPDATE, True);
 end;
 
-function TDockerConfiguration.GetDns: String;
+function TWindowsConfiguration.GetDns: String;
 const
   DEFAULT_VALUE = '8.8.8.8';
 begin
@@ -218,7 +179,7 @@ begin
   {$WARNINGS ON}
 end;
 
-function TDockerConfiguration.GetExcludedProxyHostnames: String;
+function TWindowsConfiguration.GetExcludedProxyHostnames: String;
 const
   DEFAULT_VALUE = '';
 begin
@@ -233,17 +194,17 @@ begin
   {$WARNINGS ON}
 end;
 
-function TDockerConfiguration.GetExpose: Boolean;
+function TWindowsConfiguration.GetExpose: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_EXPOSE, False);
 end;
 
-function TDockerConfiguration.GetForwardDns: Boolean;
+function TWindowsConfiguration.GetForwardDns: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_FORWARD_DNS, True);
 end;
 
-function TDockerConfiguration.GetInsecureProxy: String;
+function TWindowsConfiguration.GetInsecureProxy: String;
 const
   DEFAULT_VALUE = '';
 begin
@@ -257,16 +218,16 @@ begin
   {$WARNINGS ON}
 end;
 
-function TDockerConfiguration.GetMemory: Integer;
+function TWindowsConfiguration.GetMemory: Integer;
 begin
   Result := FConfig.GetValue(JSON_PATH_MEMORY, 2048);
 end;
 
-function TDockerConfiguration.GetOption(const Name: string): String;
+function TWindowsConfiguration.GetOption(const Name: string): String;
 var
   I: Integer;
-  SharedCredentials: TSharedCredentials;
-  SharedDrives: TSharedDrives;
+  SharedCredentials: TWindowsCredentials;
+  SharedDrives: TWindowsDriveLetters;
 begin
   Result := '';
 
@@ -314,9 +275,13 @@ begin
     SharedCredentials := GetSharedCredentials;
 
     if Length(SharedCredentials.Username) > 0 then
-      Result := SharedCredentials.Username + ':' + SharedCredentials.Password
-    else
-      Result := '';
+    begin
+      if Length(SharedCredentials.Computer) > 0 then
+        Result := SharedCredentials.Computer + '\';
+
+      Result := Result + SharedCredentials.Username + ':' +
+        SharedCredentials.Password;
+    end;
   end
   else if Name = OPTION_SHARED_DRIVES_LETTERS then
   begin
@@ -337,12 +302,12 @@ begin
     raise Exception.Create(Format('Invalid option ''%s''', [Name]));
 end;
 
-function TDockerConfiguration.GetProcessors: Integer;
+function TWindowsConfiguration.GetProcessors: Integer;
 begin
   Result := FConfig.GetValue(JSON_PATH_PROCESSORS, 2);
 end;
 
-function TDockerConfiguration.GetSecureProxy: String;
+function TWindowsConfiguration.GetSecureProxy: String;
 const
   DEFAULT_VALUE = '';
 begin
@@ -356,14 +321,16 @@ begin
   {$WARNINGS ON}
 end;
 
-function TDockerConfiguration.GetSharedCredentials: TSharedCredentials;
+function TWindowsConfiguration.GetSharedCredentials: TWindowsCredentials;
 var
   Credentials: PCREDENTIAL;
   DecryptedDataBlob: DATA_BLOB;
   EncryptedData: String;
   EncryptedDataBlob: DATA_BLOB;
+  Index: Integer;
   Success: BOOL;
 begin
+  Result.Computer := '';
   Result.Username := '';
   Result.Password := '';
 
@@ -381,6 +348,14 @@ begin
 
     // Extract the username which is simply stored as plain text.
     Result.Username := Credentials^.UserName;
+    Index := Pos('\', Result.Username);
+
+    if Index <> 0 then
+    begin
+      Result.Computer := Copy(Result.Username, 0, Index - 1);
+      Result.Username := Copy(Result.Username, Index + 1, Length(
+        Result.Username));
+    end;
 
     // Extract the encrypted credentials blob by copying the byte array.
     SetLength(EncryptedData, Credentials^.CredentialBlobSize);
@@ -408,7 +383,7 @@ begin
   end;
 end;
 
-function TDockerConfiguration.GetSharedDrives: TSharedDrives;
+function TWindowsConfiguration.GetSharedDrives: TWindowsDriveLetters;
 var
   DriveKey: String;
   DriveLetters: TStringList;
@@ -430,14 +405,14 @@ begin
         SetLength(Result, Length(Result) + 1);
         Result[High(Result)] := DriveLetters.Strings[I][1];
       end;
+      {$WARNINGS ON}
     end;
-    {$WARNINGS ON}
   finally
     DriveLetters.Free;
   end;
 end;
 
-function TDockerConfiguration.GetSubnetAddress: String;
+function TWindowsConfiguration.GetSubnetAddress: String;
 const
   DEFAULT_VALUE = '10.0.75.0';
 begin
@@ -451,22 +426,22 @@ begin
   {$WARNINGS ON}
 end;
 
-function TDockerConfiguration.GetSubnetMaskSize: Byte;
+function TWindowsConfiguration.GetSubnetMaskSize: Byte;
 begin
   Result := FConfig.GetValue(JSON_PATH_SUBNET_MASK_SIZE, 24);
 end;
 
-function TDockerConfiguration.GetTracking: Boolean;
+function TWindowsConfiguration.GetTracking: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_TRACKING, True);
 end;
 
-function TDockerConfiguration.GetUseProxy: Boolean;
+function TWindowsConfiguration.GetUseProxy: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_USE_PROXY, False);
 end;
 
-function TDockerConfiguration.GetVhdPath: String;
+function TWindowsConfiguration.GetVhdPath: String;
 const
   DEFAULT_VALUE =
     'C:\Users\Public\Documents\Hyper-V\Virtual Hard Disks\MobyLinuxVM.vhdx';
@@ -481,58 +456,58 @@ begin
   {$WARNINGS ON}
 end;
 
-procedure TDockerConfiguration.SetAutoStart(const Value: Boolean);
+procedure TWindowsConfiguration.SetAutoStart(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_AUTOSTART, Value);
 end;
 
-procedure TDockerConfiguration.SetAutoUpdate(const Value: Boolean);
+procedure TWindowsConfiguration.SetAutoUpdate(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_AUTOUPDATE, Value);
 end;
 
-procedure TDockerConfiguration.SetDns(const Value: String);
+procedure TWindowsConfiguration.SetDns(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_DNS, Value);
   {$WARNINGS ON}
 end;
 
-procedure TDockerConfiguration.SetExcludedProxyHostnames(const Value: String);
+procedure TWindowsConfiguration.SetExcludedProxyHostnames(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_EXCLUDED_PROXY_HOSTNAMES, Value);
   {$WARNINGS ON}
 end;
 
-procedure TDockerConfiguration.SetExpose(const Value: Boolean);
+procedure TWindowsConfiguration.SetExpose(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_EXPOSE, Value);
 end;
 
-procedure TDockerConfiguration.SetForwardDns(const Value: Boolean);
+procedure TWindowsConfiguration.SetForwardDns(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_FORWARD_DNS, Value);
 end;
 
-procedure TDockerConfiguration.SetInsecureProxy(const Value: String);
+procedure TWindowsConfiguration.SetInsecureProxy(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_INSECURE_PROXY, Value);
   {$WARNINGS ON}
 end;
 
-procedure TDockerConfiguration.SetMemory(const Value: Integer);
+procedure TWindowsConfiguration.SetMemory(const Value: Integer);
 begin
   FConfig.SetValue(JSON_PATH_MEMORY, Value);
 end;
 
-procedure TDockerConfiguration.SetOption(const Name,Value: String);
+procedure TWindowsConfiguration.SetOption(const Name, Value: String);
 var
-  Credentials: TSharedCredentials;
+  Credentials: TWindowsCredentials;
   DriveLetter: String;
-  DriveLetters: TSharedDrives;
-  Values: TExplodeArray;
+  DriveLetters: TWindowsDriveLetters;
+  Values: TStringArray;
   I: Integer;
 begin
   // Advanced
@@ -554,7 +529,7 @@ begin
 
     if (I mod 256 <> 0) then
       raise Exception.Create(
-        'The virtual machine''s memory allocation must be a multiple of 256')
+        'The virtual machine''s memory allocation must be a multiple of 256 MB')
     else if (I < 1024) then
       raise Exception.Create(
         'The virtual machine requires at least 1024 MB of memory');
@@ -610,21 +585,28 @@ begin
 
     if I = 0 then
       raise Exception.Create('The credentials must be specified as ' +
-        '''computername\username:password''');
+        '''username:password''');
 
     Credentials.Username := Copy(Value, 1, I - 1);
     Credentials.Password := Copy(Value, I + 1, Length(Value));
 
-    if Pos('\', Credentials.Username) = 0 then
-      raise Exception.Create('The credentials must be specified as ' +
-        '''computername\username:password''');
+    I := Pos('\', Credentials.Username);
+
+    if I <> 0 then
+    begin
+      Credentials.Computer := Copy(Credentials.Username, 1, I - 1);
+      Credentials.Username := Copy(Credentials.Username, I + 1, Length(
+        Credentials.Username));
+    end
+    else
+      Credentials.Computer := SysUtils.GetEnvironmentVariable('COMPUTERNAME');
 
     SharedCredentials := Credentials;
   end
   else if Name = OPTION_SHARED_DRIVES_LETTERS then
   begin
     SetLength(DriveLetters, 0);
-    Values := Explode(',', Value);
+    Values := TStringFunctions.Explode(',', Value);
 
     for I := 0 to High(Values) do
     begin
@@ -632,13 +614,14 @@ begin
 
       case GetDriveType(PChar(DriveLetter)) of
         DRIVE_FIXED,
-        DRIVE_RAMDISK,
         DRIVE_REMOTE:
         begin
           // Nothing wrong with these device types.
         end;
 
-        DRIVE_CDROM, DRIVE_REMOVABLE:
+        DRIVE_CDROM,
+        DRIVE_RAMDISK,
+        DRIVE_REMOVABLE:
         begin
           raise Exception.Create(Format('Unsupported drive letter ''%s''', [
             Values[I]
@@ -662,27 +645,31 @@ begin
     raise Exception.Create(Format('Invalid option ''%s''', [Name]));
 end;
 
-procedure TDockerConfiguration.SetProcessors(const Value: Integer);
+procedure TWindowsConfiguration.SetProcessors(const Value: Integer);
 begin
   FConfig.SetValue(JSON_PATH_PROCESSORS, Value);
 end;
 
-procedure TDockerConfiguration.SetSecureProxy(const Value: String);
+procedure TWindowsConfiguration.SetSecureProxy(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_SECURE_PROXY, Value);
   {$WARNINGS ON}
 end;
 
-procedure TDockerConfiguration.SetSharedCredentials(
-  const Value: TSharedCredentials
+procedure TWindowsConfiguration.SetSharedCredentials(
+  const Value: TWindowsCredentials
 );
 var
   Credentials: CREDENTIAL;
   DataBlob: DATA_BLOB;
   EncryptedDataBlob: DATA_BLOB;
   Success: BOOL;
+  Username: String;
 begin
+  // Prefix the username with the computer name.
+  Username := Value.Computer + '\' + Value.Username;
+
   // Encrypt the credentials using the Windows Cryptography API.
   DataBlob.cbData := Length(Value.Password);
   DataBlob.pbData := @Value.Password[1];
@@ -705,7 +692,7 @@ begin
   Credentials.Persist := CRED_PERSIST_ENTERPRISE;
   Credentials.TargetName := CREDENTIALS_TARGET;
   Credentials.Type_ := CRED_TYPE_GENERIC;
-  Credentials.UserName := PChar(Value.Username);
+  Credentials.UserName := PChar(Username);
 
   Success := CredWrite(@Credentials, 0);
 
@@ -713,49 +700,60 @@ begin
     raise Exception.Create('Failed to save the credentials');
 end;
 
-procedure TDockerConfiguration.SetSharedDrives(const Value: TSharedDrives);
+procedure TWindowsConfiguration.SetSharedDrives(
+  const Value: TWindowsDriveLetters
+);
 var
-  DriveLetters: TStringList;
+  Credentials: TWindowsCredentials;
+  CurrentDriveLetters: TWindowsDriveLetters;
   I: Integer;
 begin
-  try
-    DriveLetters := TStringList.Create;
-    FConfig.DeleteValue(JSON_PATH_SHARED_DRIVES);
+  // Unshare the current drives.
+  CurrentDriveLetters := GetSharedDrives;
 
-    for I := 0 to High(Value) do
-    begin
-      {$WARNINGS OFF}
-      FConfig.SetValue(JSON_PATH_SHARED_DRIVES + '/' + Value[I], True);
-      {$WARNINGS ON}
-    end;
-  finally
-    DriveLetters.Free;
+  for I := 0 to High(CurrentDriveLetters) do
+    TWindowsShares.UnshareDrive(CurrentDriveLetters[I]);
+
+  // Reset the shared drives object in the configuration file.
+  FConfig.DeleteValue(JSON_PATH_SHARED_DRIVES);
+
+  // Retrieve the stored credentials which will be used by the virtual machine
+  // when accessing the shared drives.
+  Credentials := GetSharedCredentials;
+
+  // Share the new list of drives.
+  for I := 0 to High(Value) do
+  begin
+    TWindowsShares.ShareDrive(Value[I], Credentials);
+    {$WARNINGS OFF}
+    FConfig.SetValue(JSON_PATH_SHARED_DRIVES + '/' + Value[I], True);
+    {$WARNINGS ON}
   end;
 end;
 
-procedure TDockerConfiguration.SetSubnetAddress(const Value: String);
+procedure TWindowsConfiguration.SetSubnetAddress(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_SUBNET_ADDRESS, Value);
   {$WARNINGS ON}
 end;
 
-procedure TDockerConfiguration.SetSubnetMaskSize(const Value: Byte);
+procedure TWindowsConfiguration.SetSubnetMaskSize(const Value: Byte);
 begin
   FConfig.SetValue(JSON_PATH_SUBNET_MASK_SIZE, Value);
 end;
 
-procedure TDockerConfiguration.SetTracking(const Value: Boolean);
+procedure TWindowsConfiguration.SetTracking(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_TRACKING, Value);
 end;
 
-procedure TDockerConfiguration.SetUseProxy(const Value: Boolean);
+procedure TWindowsConfiguration.SetUseProxy(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_USE_PROXY, Value);
 end;
 
-procedure TDockerConfiguration.SetVhdPath(const Value: String);
+procedure TWindowsConfiguration.SetVhdPath(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_VHD_PATH, Value);
