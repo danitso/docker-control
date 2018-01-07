@@ -85,7 +85,7 @@ by using the aliases `-v` or `--version`.
 
 While some values are supported by both Docker for Mac and Windows, others are
 supported by only one of the systems. Trying to specify a system specific value
-on the wrong system will result in an error. Please see the following group of
+on the wrong system will result in an error. Please see the following groups of
 values:
 
 * [Common](#common)
