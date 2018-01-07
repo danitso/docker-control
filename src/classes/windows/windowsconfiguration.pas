@@ -31,6 +31,7 @@ type
     JSON_PATH_PROCESSORS = '/VmCpus';
     JSON_PATH_SECURE_PROXY = '/ProxyHttps';
     JSON_PATH_SHARED_DRIVES = '/SharedDrives';
+    JSON_PATH_SUBNET_ADDRESS = '/SubnetAddress';
     JSON_PATH_SUBNET_MASK_SIZE = '/SubnetMaskSize';
     JSON_PATH_TRACKING = '/IsTracking';
     JSON_PATH_USE_PROXY = '/UseHttpProxy';
@@ -54,7 +55,7 @@ type
     function GetSecureProxyServer: String; override;
     function GetSharedCredentials: TWindowsCredentials;
     function GetSharedDrives: TWindowsDriveLetters;
-    function GetSubnetAddress: String;
+    function GetSubnetAddress: String; override;
     function GetSubnetMaskSize: Byte;
     function GetTracking: Boolean; override;
     function GetUseProxy: Boolean; override;
@@ -72,7 +73,7 @@ type
     procedure SetSecureProxyServer(const Value: String); override;
     procedure SetSharedCredentials(const Value: TWindowsCredentials);
     procedure SetSharedDrives(const Value: TWindowsDriveLetters);
-    procedure SetSubnetAddress(const Value: String);
+    procedure SetSubnetAddress(const Value: String); override;
     procedure SetSubnetMaskSize(const Value: Byte);
     procedure SetTracking(const Value: Boolean); override;
     procedure SetUseProxy(const Value: Boolean); override;
