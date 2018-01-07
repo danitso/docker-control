@@ -13,6 +13,9 @@
       <Title Value="Docker Control"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
+      <XPManifest>
+        <ExecutionLevel Value="requireAdministrator"/>
+      </XPManifest>
     </General>
     <VersionInfo>
       <UseVersionInfo Value="True"/>

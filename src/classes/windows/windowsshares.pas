@@ -23,6 +23,7 @@ type
   TWindowsShares = class
   private const
     NET_COMMAND = 'net';
+    NET_COMMAND_SHARE = 'share';
   public
     class procedure ShareDrive(
       const DriveLetter: Char;
@@ -46,7 +47,7 @@ begin
     Process := TProcess.Create(nil);
     Process.Executable := NET_COMMAND;
 
-    Process.Parameters.Append('share');
+    Process.Parameters.Append(NET_COMMAND_SHARE);
     Process.Parameters.Append(DriveLetter + '=' + DriveLetter + ':\');
     Process.Parameters.Append('/CACHE:None');
     Process.Parameters.Append(Format('/GRANT:%s\%s,%s', [
@@ -62,7 +63,7 @@ begin
     if Process.ExitCode <> 0 then
       raise Exception.Create('Failed to share drive ''' + DriveLetter + '''');
   finally
-    FreeAndNil(Process);
+    Process.Free;
   end;
 end;
 
@@ -74,7 +75,7 @@ begin
     Process := TProcess.Create(nil);
     Process.Executable := NET_COMMAND;
 
-    Process.Parameters.Append('share');
+    Process.Parameters.Append(NET_COMMAND_SHARE);
     Process.Parameters.Append(DriveLetter);
     Process.Parameters.Append('/DELETE');
 
@@ -84,7 +85,7 @@ begin
     if not Process.ExitCode in [0, 2] then
       raise Exception.Create('Failed to unshare drive ''' + DriveLetter + '''');
   finally
-    FreeAndNil(Process);
+    Process.Free;
   end;
 end;
 

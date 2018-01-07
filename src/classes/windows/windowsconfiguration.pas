@@ -660,7 +660,7 @@ var
   CurrentDriveLetters: TWindowsDriveLetters;
   I: Integer;
 begin
-  // Unshare the current drives.
+  // Unshare the current drives even though Docker for Windows does not do this.
   CurrentDriveLetters := GetSharedDrives;
 
   for I := 0 to High(CurrentDriveLetters) do
@@ -676,6 +676,7 @@ begin
   // Share the new list of drives.
   for I := 0 to High(Value) do
   begin
+    TWindowsShares.UnshareDrive(CurrentDriveLetters[I]);
     TWindowsShares.ShareDrive(Value[I], Credentials);
     {$WARNINGS OFF}
     FConfig.SetValue(JSON_PATH_SHARED_DRIVES + '/' + Value[I], True);
