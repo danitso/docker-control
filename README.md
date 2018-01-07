@@ -94,10 +94,6 @@ values:
 
 ### Common
 
-#### advanced.cpus
-
-The number of CPUs to allocate for the virtual machine.
-
 #### advanced.disk_image
 
 The absolute path to the disk image for the virtual machine.
@@ -105,6 +101,10 @@ The absolute path to the disk image for the virtual machine.
 #### advanced.memory
 
 The amount of memory (in megabytes) to allocate for the virtual machine.
+
+#### advanced.processors
+
+The number of processors to allocate for the virtual machine.
 
 #### general.autostart
 
@@ -118,10 +118,6 @@ Whether to automatically update Docker when a new version is released.
 
 Whether to allow anonymous usage data to be sent to the Docker team.
 
-#### proxies.enabled
-
-Whether to use proxy servers when pulling images.
-
 #### proxies.excluded_hostnames
 
 A comma separated list of hostnames which should bypass the proxy servers.
@@ -133,6 +129,10 @@ The URL for an insecure proxy server (HTTP).
 #### proxies.secure_server
 
 The URL for a secure proxy server (HTTPS).
+
+#### proxies.use_proxy
+
+Whether to use custom proxy servers when pulling images.
 
 ### Mac
 

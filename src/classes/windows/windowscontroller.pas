@@ -7,7 +7,7 @@ interface
 uses
   Classes,
   ConfigurationInterface,
-  ControllerInterface,
+  DockerController,
   JwaTlHelp32,
   Process,
   Registry,
@@ -19,15 +19,13 @@ uses
 
 type
   { TWindowsController }
-  TWindowsController = class(TInterfacedObject, IControllerInterface)
+  TWindowsController = class(TDockerController)
   private const
     DOCKER_UI_EXE_NAME = 'Docker for Windows.exe';
   protected class var
     FWindowHandles: array of THandle;
     FWindowProcessHandles: array of THandle;
   protected
-    FErrorMessage: string;
-
     function GetDockerUIConfigObject: IConfigurationInterface;
     function GetDockerUIConfigPath: String;
     function GetDockerUIPath: String;
@@ -42,15 +40,13 @@ type
     function WaitForDockerUIStartup(const Timeout: Integer): Boolean;
     function WaitForDockerUITrayButton(const Timeout: Integer): Boolean;
   public
-    function GetErrorMessage: String;
+    function GetOption(const Name: String): String; override;
+    procedure SetOption(const Name, Value: String); override;
 
-    function GetOption(const Name: String): String;
-    procedure SetOption(const Name, Value: String);
-
-    function Reset: Boolean;
-    function Restart: Boolean;
-    function Start: Boolean;
-    function Stop: Boolean;
+    function Reset: Boolean; override;
+    function Restart: Boolean; override;
+    function Start: Boolean; override;
+    function Stop: Boolean; override;
   end;
 
 implementation
@@ -145,11 +141,6 @@ begin
       Exit;
     end;
   end;
-end;
-
-function TWindowsController.GetErrorMessage: String;
-begin
-  Result := FErrorMessage;
 end;
 
 function TWindowsController.GetOption(const Name: String): String;

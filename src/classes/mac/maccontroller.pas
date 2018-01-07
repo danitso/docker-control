@@ -6,45 +6,55 @@ interface
 
 uses
   Classes,
-  ControllerInterface,
+  DockerController,
+  MacConfiguration,
   Process,
   SysUtils;
 
 type
   { TMacController }
-  TMacController = class(TInterfacedObject, IControllerInterface)
+  TMacController = class(TDockerController)
   private const
     DOCKER_UI_APP_NAME = 'Docker';
     DOCKER_VM_APP_NAME = 'com.docker.hyperkit';
   protected
-    FErrorMessage: String;
+    function GetDockerUIConfigObject: IConfigurationInterface;
+    function GetDockerUIConfigPath: String;
 
     function IsDockerServiceRunning: Boolean;
     function IsDockerUIRunning: Boolean;
     function IsDockerVMRunning: Boolean;
+
     function WaitForDockerService(const Timeout: Integer): Boolean;
   public
-    function GetErrorMessage: String;
+    function GetOption(const Name: String): String; override;
+    procedure SetOption(const Name, Value: String); override;
 
-    function GetOption(const Name: String): String;
-    procedure SetOption(const Name, Value: String);
-
-    function Reset: Boolean;
-    function Restart: Boolean;
-    function Start: Boolean;
-    function Stop: Boolean;
+    function Reset: Boolean; override;
+    function Restart: Boolean; override;
+    function Start: Boolean; override;
+    function Stop: Boolean; override;
   end;
 
 implementation
 
-function TMacController.GetErrorMessage: String;
+function TMacController.GetDockerUIConfigObject: IConfigurationInterface;
 begin
-  Result := FErrorMessage;
+  Result := TMacConfiguration.Create(GetDockerUIConfigPath);
+end;
+
+function TMacController.GetDockerUIConfigPath: String;
+begin
+  Result := GetUserDir +
+    '/Library/Group Containers/group.com.docker/settings.json';
 end;
 
 function TMacController.GetOption(const Name: String): String;
+var
+  Config: IConfigurationInterface;
 begin
-  raise ENotImplemented.Create('Not implemented');
+  Config := GetDockerUIConfigObject;
+  Result := Config.GetOption(Name);
 end;
 
 function TMacController.IsDockerServiceRunning: Boolean;
@@ -108,14 +118,27 @@ begin
 end;
 
 procedure TMacController.SetOption(const Name, Value: String);
+var
+  Config: IConfigurationInterface;
 begin
-  raise ENotImplemented.Create('Not implemented');
+  Config := GetDockerUIConfigObject;
+  Config.SetOption(Name, Value);
 end;
 
 function TMacController.Reset: Boolean;
+var
+  ConfigFile: String;
 begin
   Result := False;
-  raise ENotImplemented.Create('Not implemented');
+  ConfigFile := GetDockerUIConfigPath;
+
+  if FileExists(ConfigFile) and not DeleteFile(ConfigFile) then
+  begin
+    FErrorMessage := 'Failed to delete the settings file';
+    Exit;
+  end;
+
+  Result := Restart;
 end;
 
 function TMacController.Restart: Boolean;

@@ -43,56 +43,48 @@ type
     OPTION_SHARED_DRIVES_CREDENTIALS = 'shared_drives.credentials';
     OPTION_SHARED_DRIVES_LETTERS = 'shared_drives.letters';
   protected
-    function GetAutoStart: Boolean;
-    function GetAutoUpdate: Boolean;
+    function GetAutoStart: Boolean; override;
+    function GetAutoUpdate: Boolean; override;
+    function GetDiskImage: String; override;
     function GetDns: String;
-    function GetExcludedProxyHostnames: String;
+    function GetExcludedProxyHostnames: String; override;
     function GetExpose: Boolean;
     function GetForwardDns: Boolean;
-    function GetInsecureProxy: String;
-    function GetMemory: Integer;
-    function GetProcessors: Integer;
-    function GetSecureProxy: String;
+    function GetInsecureProxyServer: String; override;
+    function GetMemory: Integer; override;
+    function GetProcessors: Integer; override;
+    function GetSecureProxyServer: String; override;
     function GetSharedCredentials: TWindowsCredentials;
     function GetSharedDrives: TWindowsDriveLetters;
     function GetSubnetAddress: String;
     function GetSubnetMaskSize: Byte;
-    function GetTracking: Boolean;
-    function GetUseProxy: Boolean;
-    function GetVhdPath: String;
+    function GetTracking: Boolean; override;
+    function GetUseProxy: Boolean; override;
 
-    procedure SetAutoStart(const Value: Boolean);
-    procedure SetAutoUpdate(const Value: Boolean);
+    procedure SetAutoStart(const Value: Boolean); override;
+    procedure SetAutoUpdate(const Value: Boolean); override;
+    procedure SetDiskImage(const Value: String); override;
     procedure SetDns(const Value: String);
-    procedure SetExcludedProxyHostnames(const Value: String);
+    procedure SetExcludedProxyHostnames(const Value: String); override;
     procedure SetExpose(const Value: Boolean);
     procedure SetForwardDns(const Value: Boolean);
-    procedure SetInsecureProxy(const Value: String);
-    procedure SetMemory(const Value: Integer);
-    procedure SetProcessors(const Value: Integer);
-    procedure SetSecureProxy(const Value: String);
+    procedure SetInsecureProxyServer(const Value: String); override;
+    procedure SetMemory(const Value: Integer); override;
+    procedure SetProcessors(const Value: Integer); override;
+    procedure SetSecureProxyServer(const Value: String); override;
     procedure SetSharedCredentials(const Value: TWindowsCredentials);
     procedure SetSharedDrives(const Value: TWindowsDriveLetters);
     procedure SetSubnetAddress(const Value: String);
     procedure SetSubnetMaskSize(const Value: Byte);
-    procedure SetTracking(const Value: Boolean);
-    procedure SetUseProxy(const Value: Boolean);
-    procedure SetVhdPath(const Value: String);
+    procedure SetTracking(const Value: Boolean); override;
+    procedure SetUseProxy(const Value: Boolean); override;
   public
     function GetOption(const Name: string): String; override;
     procedure SetOption(const Name, Value: String); override;
 
-    property AutoStart: Boolean read GetAutoStart write SetAutoStart;
-    property AutoUpdate: Boolean read GetAutoUpdate write SetAutoUpdate;
     property Dns: String read GetDns write SetDns;
-    property ExcludedProxyHostnames: String read GetExcludedProxyHostnames
-      write SetExcludedProxyHostnames;
     property Expose: Boolean read GetExpose write SetExpose;
     property ForwardDns: Boolean read GetForwardDns write SetForwardDns;
-    property InsecureProxy: String read GetInsecureProxy write SetInsecureProxy;
-    property Memory: Integer read GetMemory write SetMemory;
-    property Processors: Integer read GetProcessors write SetProcessors;
-    property SecureProxy: String read GetSecureProxy write SetSecureProxy;
     property SharedCredentials: TWindowsCredentials read GetSharedCredentials
       write SetSharedCredentials;
     property SharedDrives: TWindowsDriveLetters read GetSharedDrives
@@ -100,9 +92,6 @@ type
     property SubnetAddress: String read GetSubnetAddress write SetSubnetAddress;
     property SubnetMaskSize: Byte read GetSubnetMaskSize
       write SetSubnetMaskSize;
-    property Tracking: Boolean read GetTracking write SetTracking;
-    property UseProxy: Boolean read GetUseProxy write SetUseProxy;
-    property VhdPath: String read GetVhdPath write SetVhdPath;
   end;
 
 implementation
@@ -115,6 +104,21 @@ end;
 function TWindowsConfiguration.GetAutoUpdate: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_AUTOUPDATE, True);
+end;
+
+function TWindowsConfiguration.GetDiskImage: String;
+const
+  DEFAULT_VALUE =
+    'C:\Users\Public\Documents\Hyper-V\Virtual Hard Disks\MobyLinuxVM.vhdx';
+begin
+  {$WARNINGS OFF}
+  try
+    Result := FConfig.GetValue(JSON_PATH_DISK_IMAGE, DEFAULT_VALUE);
+  except
+    on exception do
+      Result := DEFAULT_VALUE;
+  end;
+  {$WARNINGS ON}
 end;
 
 function TWindowsConfiguration.GetDns: String;
@@ -156,7 +160,7 @@ begin
   Result := FConfig.GetValue(JSON_PATH_FORWARD_DNS, True);
 end;
 
-function TWindowsConfiguration.GetInsecureProxy: String;
+function TWindowsConfiguration.GetInsecureProxyServer: String;
 const
   DEFAULT_VALUE = '';
 begin
@@ -183,23 +187,9 @@ var
 begin
   Result := '';
 
-  // Advanced
-  if Name = OPTION_ADVANCED_CPUS then
-    Result := IntToStr(Processors)
-  else if Name = OPTION_ADVANCED_MEMORY then
-    Result := IntToStr(Memory)
-  else if Name = OPTION_ADVANCED_DISK_IMAGE then
-    Result := VhdPath
-
   // General
-  else if Name = OPTION_GENERAL_AUTOSTART then
-    Result := LowerCase(BoolToStr(AutoStart, True))
-  else if Name = OPTION_GENERAL_AUTOUPDATE then
-    Result := LowerCase(BoolToStr(AutoUpdate, True))
-  else if Name = OPTION_GENERAL_EXPOSE_DAEMON then
+  if Name = OPTION_GENERAL_EXPOSE_DAEMON then
     Result := LowerCase(BoolToStr(Expose, True))
-  else if Name = OPTION_GENERAL_TRACKING then
-    Result := LowerCase(BoolToStr(Tracking, True))
 
   // Network
   else if Name = OPTION_NETWORK_DNS_FORWARDING then
@@ -210,16 +200,6 @@ begin
     Result := SubnetAddress
   else if Name = OPTION_NETWORK_SUBNET_MASK_SIZE then
     Result := IntToStr(SubnetMaskSize)
-
-  // Proxies
-  else if Name = OPTION_PROXIES_ENABLED then
-    Result := LowerCase(BoolToStr(UseProxy, True))
-  else if Name = OPTION_PROXIES_EXCLUDED_HOSTNAMES then
-    Result := ExcludedProxyHostnames
-  else if Name = OPTION_PROXIES_INSECURE_SERVER then
-    Result := InsecureProxy
-  else if Name = OPTION_PROXIES_SECURE_SERVER then
-    Result := SecureProxy
 
   // Shared Drives
   else if Name = OPTION_SHARED_DRIVES_CREDENTIALS then
@@ -249,9 +229,9 @@ begin
     end;
   end
 
-  // Raise an exception in case the option name is invalid.
+  // Allow the base class to retrieve common options.
   else
-    raise Exception.Create(Format('Invalid option ''%s''', [Name]));
+    Result := inherited;
 end;
 
 function TWindowsConfiguration.GetProcessors: Integer;
@@ -259,7 +239,7 @@ begin
   Result := FConfig.GetValue(JSON_PATH_PROCESSORS, 2);
 end;
 
-function TWindowsConfiguration.GetSecureProxy: String;
+function TWindowsConfiguration.GetSecureProxyServer: String;
 const
   DEFAULT_VALUE = '';
 begin
@@ -393,21 +373,6 @@ begin
   Result := FConfig.GetValue(JSON_PATH_USE_PROXY, False);
 end;
 
-function TWindowsConfiguration.GetVhdPath: String;
-const
-  DEFAULT_VALUE =
-    'C:\Users\Public\Documents\Hyper-V\Virtual Hard Disks\MobyLinuxVM.vhdx';
-begin
-  {$WARNINGS OFF}
-  try
-    Result := FConfig.GetValue(JSON_PATH_DISK_IMAGE, DEFAULT_VALUE);
-  except
-    on exception do
-      Result := DEFAULT_VALUE;
-  end;
-  {$WARNINGS ON}
-end;
-
 procedure TWindowsConfiguration.SetAutoStart(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_AUTOSTART, Value);
@@ -416,6 +381,13 @@ end;
 procedure TWindowsConfiguration.SetAutoUpdate(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_AUTOUPDATE, Value);
+end;
+
+procedure TWindowsConfiguration.SetDiskImage(const Value: String);
+begin
+  {$WARNINGS OFF}
+  FConfig.SetValue(JSON_PATH_DISK_IMAGE, Value);
+  {$WARNINGS ON}
 end;
 
 procedure TWindowsConfiguration.SetDns(const Value: String);
@@ -442,7 +414,7 @@ begin
   FConfig.SetValue(JSON_PATH_FORWARD_DNS, Value);
 end;
 
-procedure TWindowsConfiguration.SetInsecureProxy(const Value: String);
+procedure TWindowsConfiguration.SetInsecureProxyServer(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_INSECURE_PROXY, Value);
@@ -462,46 +434,9 @@ var
   Values: TStringArray;
   I: Integer;
 begin
-  // Advanced
-  if Name = OPTION_ADVANCED_CPUS then
-  begin
-    I := StrToInt(Value);
-
-    if (I < 1) then
-      raise Exception.Create('The virtual machine requires at least one CPU')
-    else if (I > GetCPUCount) then
-      raise Exception.Create(Format('The system only has %d CPU(s)',
-        [GetCPUCount]));
-
-    Processors := I;
-  end
-  else if Name = OPTION_ADVANCED_MEMORY then
-  begin
-    I := StrToInt(Value);
-
-    if (I mod 256 <> 0) then
-      raise Exception.Create(
-        'The virtual machine''s memory allocation must be a multiple of 256 MB')
-    else if (I < 1024) then
-      raise Exception.Create(
-        'The virtual machine requires at least 1024 MB of memory');
-
-    Memory := I;
-  end
-  else if Name = OPTION_ADVANCED_DISK_IMAGE then
-  begin
-    VhdPath := Value;
-  end
-
   // General
-  else if Name = OPTION_GENERAL_AUTOSTART then
-    AutoStart := StrToBool(Value)
-  else if Name = OPTION_GENERAL_AUTOUPDATE then
-    AutoUpdate := StrToBool(Value)
-  else if Name = OPTION_GENERAL_EXPOSE_DAEMON then
+  if Name = OPTION_GENERAL_EXPOSE_DAEMON then
     Expose := StrToBool(Value)
-  else if Name = OPTION_GENERAL_TRACKING then
-    Tracking := StrToBool(Value)
 
   // Network
   else if Name = OPTION_NETWORK_DNS_FORWARDING then
@@ -519,16 +454,6 @@ begin
 
     SubnetMaskSize := I;
   end
-
-  // Proxies
-  else if Name = OPTION_PROXIES_ENABLED then
-    UseProxy := StrToBool(Value)
-  else if Name = OPTION_PROXIES_EXCLUDED_HOSTNAMES then
-    ExcludedProxyHostnames := Value
-  else if Name = OPTION_PROXIES_INSECURE_SERVER then
-    InsecureProxy := Value
-  else if Name = OPTION_PROXIES_SECURE_SERVER then
-    SecureProxy := Value
 
   // Shared Drives
   else if Name = OPTION_SHARED_DRIVES_CREDENTIALS then
@@ -592,9 +517,9 @@ begin
     SharedDrives := DriveLetters;
   end
 
-  // Raise an exception in case the option name is invalid.
+  // Allow the base class to set common options.
   else
-    raise Exception.Create(Format('Invalid option ''%s''', [Name]));
+    inherited;
 end;
 
 procedure TWindowsConfiguration.SetProcessors(const Value: Integer);
@@ -602,7 +527,7 @@ begin
   FConfig.SetValue(JSON_PATH_PROCESSORS, Value);
 end;
 
-procedure TWindowsConfiguration.SetSecureProxy(const Value: String);
+procedure TWindowsConfiguration.SetSecureProxyServer(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_SECURE_PROXY, Value);
@@ -704,13 +629,6 @@ end;
 procedure TWindowsConfiguration.SetUseProxy(const Value: Boolean);
 begin
   FConfig.SetValue(JSON_PATH_USE_PROXY, Value);
-end;
-
-procedure TWindowsConfiguration.SetVhdPath(const Value: String);
-begin
-  {$WARNINGS OFF}
-  FConfig.SetValue(JSON_PATH_DISK_IMAGE, Value);
-  {$WARNINGS ON}
 end;
 
 end.

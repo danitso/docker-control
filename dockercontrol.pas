@@ -9,6 +9,7 @@ uses
     {$ENDIF}
   {$ENDIF}
   {$IFDEF DARWIN}
+  MacConfiguration,
   MacController,
   {$ENDIF}
   {$IFDEF MSWINDOWS}
@@ -23,6 +24,7 @@ uses
   ControllerInterface,
   CustApp,
   DockerConfiguration,
+  DockerController,
   FileInfo,
   StringFunctions,
   SysUtils;
@@ -188,10 +190,15 @@ procedure TDockerControl.ExecuteReset;
 begin
   WriteLn('Resetting the Docker service');
 
-  if not FController.Reset then
-  begin
-    WriteErrorString(FController.GetErrorMessage);
-    Terminate(EXIT_CODE_ERROR);
+  try
+    if not FController.Reset then
+    begin
+      WriteErrorString(FController.GetErrorMessage);
+      Terminate(EXIT_CODE_ERROR);
+    end;
+  except
+    on E: exception do
+      WriteErrorString(E.Message);
   end;
 end;
 
@@ -199,10 +206,15 @@ procedure TDockerControl.ExecuteRestart;
 begin
   WriteLn('Restarting the Docker service');
 
-  if not FController.Restart then
-  begin
-    WriteErrorString(FController.GetErrorMessage);
-    Terminate(EXIT_CODE_ERROR);
+  try
+    if not FController.Restart then
+    begin
+      WriteErrorString(FController.GetErrorMessage);
+      Terminate(EXIT_CODE_ERROR);
+    end;
+  except
+    on E: exception do
+      WriteErrorString(E.Message);
   end;
 end;
 
@@ -210,10 +222,15 @@ procedure TDockerControl.ExecuteStart;
 begin
   WriteLn('Starting the Docker service');
 
-  if not FController.Start then
-  begin
-    WriteErrorString(FController.GetErrorMessage);
-    Terminate(EXIT_CODE_ERROR);
+  try
+    if not FController.Start then
+    begin
+      WriteErrorString(FController.GetErrorMessage);
+      Terminate(EXIT_CODE_ERROR);
+    end;
+  except
+    on E: exception do
+      WriteErrorString(E.Message);
   end;
 end;
 
@@ -221,10 +238,15 @@ procedure TDockerControl.ExecuteStop;
 begin
   WriteLn('Stopping the Docker service');
 
-  if not FController.Stop then
-  begin
-    WriteErrorString(FController.GetErrorMessage);
-    Terminate(EXIT_CODE_ERROR);
+  try
+    if not FController.Stop then
+    begin
+      WriteErrorString(FController.GetErrorMessage);
+      Terminate(EXIT_CODE_ERROR);
+    end;
+  except
+    on E: exception do
+      WriteErrorString(E.Message);
   end;
 end;
 
@@ -240,17 +262,21 @@ begin
     FileVerInfo.ReadFileInfo;
 
     // Write the version information string to the standard output stream.
-    WriteLn(Format('%s version %s', [
+    WriteLn(Format('%s version %s (%s)', [
       FileVerInfo.VersionStrings.Values['ProductName'],
       Copy(
         FileVerInfo.VersionStrings.Values['FileVersion'],
         1,
         LastDelimiter('.', FileVerInfo.VersionStrings.Values['FileVersion']) - 1
-      )
+      ),
+      {$I %FPCTARGETOS%}
     ]));
-  finally
-    FileVerInfo.Free;
+  except
+    on E: exception do
+      WriteErrorString(E.Message);
   end;
+
+  FileVerInfo.Free;
 end;
 
 procedure TDockerControl.WriteErrorString(const Message: String);

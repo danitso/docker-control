@@ -33,7 +33,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="11">
+    <Units Count="13">
       <Unit0>
         <Filename Value="dockercontrol.pas"/>
         <IsPartOfProject Value="True"/>
@@ -89,6 +89,16 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="MacController"/>
       </Unit10>
+      <Unit11>
+        <Filename Value="src\classes\common\dockercontroller.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="DockerController"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="src\classes\mac\macconfiguration.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="MacConfiguration"/>
+      </Unit12>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
