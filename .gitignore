@@ -2,6 +2,7 @@
 
 *.lps
 
+backup/
 /bin/*/*/*.bat
 /bin/*/*/*.res
 /lib

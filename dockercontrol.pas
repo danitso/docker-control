@@ -1,6 +1,5 @@
 program DockerControl;
 
-{$APPTYPE CONSOLE}
 {$MODE DELPHI}
 
 uses

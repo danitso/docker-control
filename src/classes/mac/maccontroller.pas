@@ -14,12 +14,14 @@ type
   { TMacController }
   TMacController = class(TInterfacedObject, IControllerInterface)
   private const
-    DOCKER_UI_EXE_NAME = 'Docker';
+    DOCKER_UI_APP_NAME = 'Docker';
+    DOCKER_VM_APP_NAME = 'com.docker.hyperkit';
   protected
     FErrorMessage: String;
 
-    function GetDockerUIProcessId: Cardinal;
     function IsDockerServiceRunning: Boolean;
+    function IsDockerUIRunning: Boolean;
+    function IsDockerVMRunning: Boolean;
     function WaitForDockerService(const Timeout: Integer): Boolean;
   public
     function GetErrorMessage: String;
@@ -34,38 +36,6 @@ type
   end;
 
 implementation
-
-function TMacController.GetDockerUIProcessId: Cardinal;
-var
-  Output: TStringList;
-  Process: TProcess;
-begin
-  RunCommand();
-  Result := 0;
-
-  // Retrieve the process id for the Docker UI application.
-  try
-    Process := TProcess.Create(nil);
-    Process.Executable := 'pgrep';
-    Process.Parameters.Append(DOCKER_UI_EXE_NAME);
-    Process.Options := [poWaitOnExit, poUsePipes];
-    Process.Execute;
-
-    if Process.ExitCode = 0 then
-    begin
-      Output := TStringList.Create;
-      Output.LoadFromStream(Process.Output);
-
-      Result := StrToInt(Trim(Output.Text));
-    end;
-  finally
-    if Assigned(Output) then
-      Output.Free;
-
-    if Assigned(Process) then
-      Process.Free;
-  end;
-end;
 
 function TMacController.GetErrorMessage: String;
 begin
@@ -85,12 +55,52 @@ begin
 
   try
     Process := TProcess.Create(nil);
-    Process.Executable := 'docker';
+    Process.Executable := '/usr/local/bin/docker';
     Process.Parameters.Append('ps');
     Process.Options := [poWaitOnExit, poUsePipes];
     Process.Execute;
 
-    if Process.ExitCode = 0 then
+    if Process.ExitStatus = 0 then
+      Result := True;
+  finally
+    Process.Free;
+  end;
+end;
+
+function TMacController.IsDockerUIRunning: Boolean;
+var
+  Process: TProcess;
+begin
+  Result := False;
+
+  try
+    Process := TProcess.Create(nil);
+    Process.Executable := '/usr/bin/pgrep';
+    Process.Parameters.Append(DOCKER_UI_APP_NAME);
+    Process.Options := [poWaitOnExit, poUsePipes];
+    Process.Execute;
+
+    if Process.ExitStatus = 0 then
+      Result := True;
+  finally
+    Process.Free;
+  end;
+end;
+
+function TMacController.IsDockerVMRunning: Boolean;
+var
+  Process: TProcess;
+begin
+  Result := False;
+
+  try
+    Process := TProcess.Create(nil);
+    Process.Executable := '/usr/bin/pgrep';
+    Process.Parameters.Append(DOCKER_VM_APP_NAME);
+    Process.Options := [poWaitOnExit, poUsePipes];
+    Process.Execute;
+
+    if Process.ExitStatus = 0 then
       Result := True;
   finally
     Process.Free;
@@ -129,19 +139,19 @@ begin
   // Start the Docker UI application.
   try
     Process := TProcess.Create(nil);
-    Process.Executable := 'open';
+    Process.Executable := '/usr/bin/open';
 
     Process.Parameters.Append('--background');
     Process.Parameters.Append('--hide');
-    Process.Parameters.Append('--a');
-    Process.Parameters.Append(DOCKER_UI_EXE_NAME);
+    Process.Parameters.Append('-a');
+    Process.Parameters.Append(DOCKER_UI_APP_NAME);
 
     Process.Options := [poWaitOnExit, poUsePipes];
     Process.Execute;
 
-    if Process.ExitCode <> 0 then
+    if Process.ExitStatus <> 0 then
     begin
-      FErrorMessage := 'Failed to open the Docker UI application';
+      FErrorMessage := 'Failed to start the Docker UI application';
       Exit;
     end;
   finally
@@ -164,52 +174,48 @@ const
   TIMEOUT_STOP = 120;
 var
   I: Integer;
-  ProcessId: Cardinal;
+  Process: TProcess;
 begin
   Result := False;
 
   // Determine if the Docker UI application is not running in which case we can
   // just indicate success.
-  ProcessId := GetDockerUIProcessId;
-
-  if ProcessId = 0 then
+  if not IsDockerUIRunning then
   begin
     Result := True;
     Exit;
   end;
 
-  // Stop the Docker UI application by sending a KILL signal.
+  // Terminate the Docker UI application by sending a KILL signal.
   try
     Process := TProcess.Create(nil);
-    Process.Executable := 'kill';
-    Process.Parameters.Append(IntToStr(ProcessId));
+    Process.Executable := '/usr/bin/pkill';
+    Process.Parameters.Append(DOCKER_UI_APP_NAME);
     Process.Options := [poWaitOnExit, poUsePipes];
     Process.Execute;
 
-    if Process.ExitCode <> 0 then
+    if Process.ExitStatus <> 0 then
     begin
-      FErrorMessage := 'Failed to stop the Docker UI application';
+      FErrorMessage := 'Failed to terminate the Docker UI application';
       Exit;
     end;
   finally
     Process.Free;
   end;
 
-  // Wait for the Docker UI application to terminate.
+  // Wait for the Docker VM to terminate.
   for I := 1 to TIMEOUT_STOP do
   begin
-    ProcessId := GetDockerUIProcessId;
-
-    if ProcessId = 0 then
+    if not IsDockerVMRunning then
       Break;
 
     Sleep(1000);
   end;
 
-  // Verify that the Docker UI application has been terminated.
-  if ProcessId <> 0 then
+  // Verify that the Docker VM has been terminated.
+  if IsDockerVMRunning then
   begin
-    FErrorMessage := 'Failed to stop the Docker UI application';
+    FErrorMessage := 'Failed to terminate the Docker VM';
     Exit;
   end;
 
