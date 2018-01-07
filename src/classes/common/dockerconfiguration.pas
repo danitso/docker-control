@@ -21,6 +21,7 @@ type
     OPTION_GENERAL_AUTOSTART = 'general.autostart';
     OPTION_GENERAL_AUTOUPDATE = 'general.autoupdate';
     OPTION_GENERAL_TRACKING = 'general.tracking';
+    OPTION_NETWORK_SUBNET_ADDRESS = 'network.subnet_address';
     OPTION_PROXIES_EXCLUDED_HOSTNAMES = 'proxies.excluded_hostnames';
     OPTION_PROXIES_INSECURE_SERVER = 'proxies.insecure_server';
     OPTION_PROXIES_SECURE_SERVER = 'proxies.secure_server';
@@ -36,6 +37,7 @@ type
     function GetMemory: Integer; virtual; abstract;
     function GetProcessors: Integer; virtual; abstract;
     function GetSecureProxyServer: String; virtual; abstract;
+    function GetSubnetAddress: String; virtual; abstract;
     function GetTracking: Boolean; virtual; abstract;
     function GetUseProxy: Boolean; virtual; abstract;
 
@@ -47,6 +49,7 @@ type
     procedure SetMemory(const Value: Integer); virtual; abstract;
     procedure SetProcessors(const Value: Integer); virtual; abstract;
     procedure SetSecureProxyServer(const Value: String); virtual; abstract;
+    procedure SetSubnetAddress(const Value: String); virtual; abstract;
     procedure SetTracking(const Value: Boolean); virtual; abstract;
     procedure SetUseProxy(const Value: Boolean); virtual; abstract;
   public
@@ -67,6 +70,7 @@ type
     property Processors: Integer read GetProcessors write SetProcessors;
     property SecureProxyServer: String read GetSecureProxyServer
       write SetSecureProxyServer;
+    property SubnetAddress: String read GetSubnetAddress write SetSubnetAddress;
     property Tracking: Boolean read GetTracking write SetTracking;
     property UseProxy: Boolean read GetUseProxy write SetUseProxy;
   end;
@@ -124,6 +128,10 @@ begin
   else if Name = OPTION_GENERAL_TRACKING then
     Result := LowerCase(BoolToStr(Tracking, True))
 
+  // Network
+  else if Name = OPTION_NETWORK_SUBNET_ADDRESS then
+    Result := SubnetAddress
+
   // Proxies
   else if Name = OPTION_PROXIES_EXCLUDED_HOSTNAMES then
     Result := ExcludedProxyHostnames
@@ -141,7 +149,7 @@ end;
 
 procedure TDockerConfiguration.SetOption(const Name, Value: String);
 var
-  I: Integer;
+  I: Cardinal;
 begin
   // Advanced
   if Name = OPTION_ADVANCED_DISK_IMAGE then
@@ -180,6 +188,10 @@ begin
     AutoUpdate := StrToBool(Value)
   else if Name = OPTION_GENERAL_TRACKING then
     Tracking := StrToBool(Value)
+
+  // Network
+  else if Name = OPTION_NETWORK_SUBNET_ADDRESS then
+    SubnetAddress := Value
 
   // Proxies
   else if Name = OPTION_PROXIES_EXCLUDED_HOSTNAMES then

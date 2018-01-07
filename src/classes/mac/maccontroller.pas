@@ -6,6 +6,7 @@ interface
 
 uses
   Classes,
+  ConfigurationInterface,
   DockerController,
   MacConfiguration,
   Process,

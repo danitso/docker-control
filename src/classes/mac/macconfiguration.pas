@@ -16,11 +16,12 @@ type
     JSON_PATH_AUTOSTART = '/autoStart';
     JSON_PATH_AUTOUPDATE = '/checkForUpdates';
     JSON_PATH_DISK_IMAGE = '/diskPath';
-    JSON_PATH_EXCLUDED_PROXY_HOSTNAMES = '/proxyExclude';
-    JSON_PATH_INSECURE_PROXY = '/proxyHttp';
+    JSON_PATH_EXCLUDED_PROXY_HOSTNAMES = '/overrideProxyExclude';
+    JSON_PATH_INSECURE_PROXY = '/overrideProxyHttp';
     JSON_PATH_MEMORY = '/memoryMiB';
     JSON_PATH_PROCESSORS = '/cpus';
-    JSON_PATH_SECURE_PROXY = '/proxyHttps';
+    JSON_PATH_SECURE_PROXY = '/overrideProxyHttps';
+    JSON_PATH_SUBNET_ADDRESS = '/hyperkitIpRange';
     JSON_PATH_TRACKING = '/analyticsEnabled';
     JSON_PATH_USE_PROXY = '/proxyHttpMode';
   protected
@@ -32,6 +33,7 @@ type
     function GetMemory: Integer; override;
     function GetProcessors: Integer; override;
     function GetSecureProxyServer: String; override;
+    function GetSubnetAddress: String; override;
     function GetTracking: Boolean; override;
     function GetUseProxy: Boolean; override;
 
@@ -43,6 +45,7 @@ type
     procedure SetMemory(const Value: Integer); override;
     procedure SetProcessors(const Value: Integer); override;
     procedure SetSecureProxyServer(const Value: String); override;
+    procedure SetSubnetAddress(const Value: String); override;
     procedure SetTracking(const Value: Boolean); override;
     procedure SetUseProxy(const Value: Boolean); override;
   public
@@ -142,6 +145,20 @@ begin
   {$WARNINGS ON}
 end;
 
+function TMacConfiguration.GetSubnetAddress: String;
+const
+  DEFAULT_VALUE = '';
+begin
+  {$WARNINGS OFF}
+  try
+    Result := FConfig.GetValue(JSON_PATH_SUBNET_ADDRESS, DEFAULT_VALUE);
+  except
+    on exception do
+      Result := DEFAULT_VALUE;
+  end;
+  {$WARNINGS ON}
+end;
+
 function TMacConfiguration.GetTracking: Boolean;
 begin
   Result := FConfig.GetValue(JSON_PATH_TRACKING, True);
@@ -208,6 +225,13 @@ procedure TMacConfiguration.SetSecureProxyServer(const Value: String);
 begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_SECURE_PROXY, Value);
+  {$WARNINGS ON}
+end;
+
+procedure TMacConfiguration.SetSubnetAddress(const Value: String);
+begin
+  {$WARNINGS OFF}
+  FConfig.SetValue(JSON_PATH_SUBNET_ADDRESS, Value);
   {$WARNINGS ON}
 end;
 

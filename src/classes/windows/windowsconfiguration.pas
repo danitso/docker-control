@@ -31,14 +31,12 @@ type
     JSON_PATH_PROCESSORS = '/VmCpus';
     JSON_PATH_SECURE_PROXY = '/ProxyHttps';
     JSON_PATH_SHARED_DRIVES = '/SharedDrives';
-    JSON_PATH_SUBNET_ADDRESS = '/SubnetAddress';
     JSON_PATH_SUBNET_MASK_SIZE = '/SubnetMaskSize';
     JSON_PATH_TRACKING = '/IsTracking';
     JSON_PATH_USE_PROXY = '/UseHttpProxy';
     OPTION_GENERAL_EXPOSE_DAEMON = 'general.expose_daemon';
     OPTION_NETWORK_DNS_FORWARDING = 'network.dns_forwarding';
     OPTION_NETWORK_DNS_SERVER = 'network.dns_server';
-    OPTION_NETWORK_SUBNET_ADDRESS = 'network.subnet_address';
     OPTION_NETWORK_SUBNET_MASK_SIZE = 'network.subnet_mask_size';
     OPTION_SHARED_DRIVES_CREDENTIALS = 'shared_drives.credentials';
     OPTION_SHARED_DRIVES_LETTERS = 'shared_drives.letters';
@@ -89,7 +87,6 @@ type
       write SetSharedCredentials;
     property SharedDrives: TWindowsDriveLetters read GetSharedDrives
       write SetSharedDrives;
-    property SubnetAddress: String read GetSubnetAddress write SetSubnetAddress;
     property SubnetMaskSize: Byte read GetSubnetMaskSize
       write SetSubnetMaskSize;
   end;
@@ -196,8 +193,6 @@ begin
     Result := LowerCase(BoolToStr(ForwardDns, True))
   else if Name = OPTION_NETWORK_DNS_SERVER then
     Result := Dns
-  else if Name = OPTION_NETWORK_SUBNET_ADDRESS then
-    Result := SubnetAddress
   else if Name = OPTION_NETWORK_SUBNET_MASK_SIZE then
     Result := IntToStr(SubnetMaskSize)
 
@@ -443,8 +438,6 @@ begin
     ForwardDns := StrToBool(Value)
   else if Name = OPTION_NETWORK_DNS_SERVER then
     Dns := Value
-  else if Name = OPTION_NETWORK_SUBNET_ADDRESS then
-    SubnetAddress := Value
   else if Name = OPTION_NETWORK_SUBNET_MASK_SIZE then
   begin
     I := StrToInt(Value);
