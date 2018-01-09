@@ -44,10 +44,10 @@ implementation
 function TMacController.GetApplicationPath(const AppName: String): String;
 var
   Process: TProcess;
-  Stream: TStringStream;
+  Strings: TStringList;
 begin
   Result := '';
-  Stream := nil;
+  Strings := nil;
 
   try
     Process := TProcess.Create(nil);
@@ -59,15 +59,13 @@ begin
     if Process.ExitStatus <> 0 then
       Exit;
 
-    Process.Output.Position := 0;
+    Strings := TStringList.Create;
+    Strings.LoadFromStream(Process.Output);
 
-    Stream := TStringStream.Create;
-    Stream.CopyFrom(Process.Output, Process.Output.Size);
-
-    Result := Stream.DataString;
+    Result := Trim(Strings.Text);
   finally
-    if Assigned(Stream) then
-      Stream.Free;
+    if Assigned(Strings) then
+      Strings.Free;
 
     Process.Free;
   end;
