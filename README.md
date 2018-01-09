@@ -136,7 +136,10 @@ Whether to use custom proxy servers when pulling images.
 
 ### Mac
 
-Documentation has not been created yet.
+#### file_sharing.directories
+
+A comma separated list of directory paths, which will be used for host mapped
+volumes.
 
 ### Windows
 
