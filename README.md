@@ -26,6 +26,9 @@ Linux containers.
    for your operating system
 1. Add the path to your system's `PATH` variable.
 
+**Important**: Git must be installed on Mac in order to retrieve and change
+shared directories.
+
 ## Usage
 
 The utility has a simple set of commands which are invoked like this:
