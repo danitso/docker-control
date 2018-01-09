@@ -121,6 +121,10 @@ Whether to automatically update Docker when a new version is released.
 
 Whether to allow anonymous usage data to be sent to the Docker team.
 
+#### network.subnet_address
+
+The subnet address for the virtual network.
+
 #### proxies.excluded_hostnames
 
 A comma separated list of hostnames which should bypass the proxy servers.
@@ -157,10 +161,6 @@ Whether to use DNS forwarding.
 #### network.dns_server
 
 The IP address of the primary DNS server.
-
-#### network.subnet_address
-
-The subnet address for the virtual network.
 
 #### network.subnet_mask_size
 
