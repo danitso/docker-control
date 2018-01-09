@@ -16,9 +16,11 @@ type
   { TMacController }
   TMacController = class(TDockerController)
   private const
+    DOCKER_CLI_APP_NAME = 'docker';
     DOCKER_UI_APP_NAME = 'Docker';
     DOCKER_VM_APP_NAME = 'com.docker.hyperkit';
   protected
+    function GetApplicationPath(const AppName: String): String;
     function GetDockerUIConfigObject: IConfigurationInterface;
     function GetDockerUIConfigPath: String;
 
@@ -38,6 +40,38 @@ type
   end;
 
 implementation
+
+function TMacController.GetApplicationPath(const AppName: String): String;
+var
+  Process: TProcess;
+  Stream: TStringStream;
+begin
+  Result := '';
+  Stream := nil;
+
+  try
+    Process := TProcess.Create(nil);
+    Process.Executable := '/usr/bin/which';
+    Process.Parameters.Append(AppName);
+    Process.Options := [poWaitOnExit, poUsePipes];
+    Process.Execute;
+
+    if Process.ExitStatus <> 0 then
+      Exit;
+
+    Process.Output.Position := 0;
+
+    Stream := TStringStream.Create;
+    Stream.CopyFrom(Process.Output, Process.Output.Size);
+
+    Result := Stream.DataString;
+  finally
+    if Assigned(Stream) then
+      Stream.Free;
+
+    Process.Free;
+  end;
+end;
 
 function TMacController.GetDockerUIConfigObject: IConfigurationInterface;
 begin
@@ -66,7 +100,7 @@ begin
 
   try
     Process := TProcess.Create(nil);
-    Process.Executable := '/usr/local/bin/docker';
+    Process.Executable := GetApplicationPath(DOCKER_CLI_APP_NAME);
     Process.Parameters.Append('ps');
     Process.Options := [poWaitOnExit, poUsePipes];
     Process.Execute;
