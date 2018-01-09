@@ -7,12 +7,15 @@ interface
 uses
   Classes,
   DockerConfiguration,
+  Process,
+  StringFunctions,
   SysUtils;
 
 type
   { TMacConfiguration }
   TMacConfiguration = class(TDockerConfiguration)
   private const
+    DOCKER_DATABASE_MOUNTS = 'com.docker.driver.amd64-linux/mounts';
     JSON_PATH_AUTOSTART = '/autoStart';
     JSON_PATH_AUTOUPDATE = '/checkForUpdates';
     JSON_PATH_DISK_IMAGE = '/diskPath';
@@ -24,15 +27,18 @@ type
     JSON_PATH_SUBNET_ADDRESS = '/hyperkitIpRange';
     JSON_PATH_TRACKING = '/analyticsEnabled';
     JSON_PATH_USE_PROXY = '/proxyHttpMode';
+    OPTION_SHARED_DIRECTORIES = 'file_sharing.directories';
   protected
     function GetAutoStart: Boolean; override;
     function GetAutoUpdate: Boolean; override;
     function GetDiskImage: String; override;
+    function GetDockerDatabasePath: String;
     function GetExcludedProxyHostnames: String; override;
     function GetInsecureProxyServer: String; override;
     function GetMemory: Integer; override;
     function GetProcessors: Integer; override;
     function GetSecureProxyServer: String; override;
+    function GetSharedDirectories: TStringArray;
     function GetSubnetAddress: String; override;
     function GetTracking: Boolean; override;
     function GetUseProxy: Boolean; override;
@@ -45,12 +51,16 @@ type
     procedure SetMemory(const Value: Integer); override;
     procedure SetProcessors(const Value: Integer); override;
     procedure SetSecureProxyServer(const Value: String); override;
+    procedure SetSharedDirectories(const Value: TStringArray);
     procedure SetSubnetAddress(const Value: String); override;
     procedure SetTracking(const Value: Boolean); override;
     procedure SetUseProxy(const Value: Boolean); override;
   public
     function GetOption(const Name: string): String; override;
     procedure SetOption(const Name, Value: String); override;
+
+    property SharedDirectories: TStringArray read GetSharedDirectories
+      write SetSharedDirectories;
   end;
 
 implementation
@@ -77,6 +87,11 @@ begin
       Result := DEFAULT_VALUE;
   end;
   {$WARNINGS ON}
+end;
+
+function TMacConfiguration.GetDockerDatabasePath: String;
+begin
+  Result := GetUserDir + '/Library/Containers/com.docker.docker/Data/database';
 end;
 
 function TMacConfiguration.GetExcludedProxyHostnames: String;
@@ -114,12 +129,25 @@ begin
 end;
 
 function TMacConfiguration.GetOption(const Name: string): String;
+var
+  I: Integer;
+  Values: TStringArray;
 begin
   Result := '';
 
   // General
-  if False then
-    Exit
+  if Name = OPTION_SHARED_DIRECTORIES then
+  begin
+    Values := SharedDirectories;
+
+    for I := 0 to High(Values) do
+    begin
+      if I > 0 then
+        Result := Result + ',' + Values[I]
+      else
+        Result := Values[I];
+    end;
+  end
 
   // Allow the base class to retrieve common options.
   else
@@ -143,6 +171,29 @@ begin
       Result := DEFAULT_VALUE;
   end;
   {$WARNINGS ON}
+end;
+
+function TMacConfiguration.GetSharedDirectories: TStringArray;
+var
+  I: Integer;
+  Strings: TStringList;
+  Values: TStringArray;
+begin
+  SetLength(Result, 0);
+  Strings := TStringList.Create;
+
+  try
+    Strings.LoadFromFile(GetDockerDatabasePath + '/' + DOCKER_DATABASE_MOUNTS);
+    SetLength(Result, Strings.Count);
+
+    for I := 0 to Strings.Count - 1 do
+    begin
+      Values := TStringFunctions.Explode(':', Strings[I]);
+      Result[I] := Values[0];
+    end;
+  finally
+    Strings.Free;
+  end;
 end;
 
 function TMacConfiguration.GetSubnetAddress: String;
@@ -206,10 +257,23 @@ begin
 end;
 
 procedure TMacConfiguration.SetOption(const Name, Value: String);
+var
+  I: Integer;
+  Values: TStringArray;
 begin
   // General
-  if False then
-    Exit
+  if Name = OPTION_SHARED_DIRECTORIES then
+  begin
+    Values := TStringFunctions.Explode(',', Value);
+
+    for I := 0 to High(Values) do
+    begin
+      if not DirectoryExists(Values[I]) then
+        raise Exception.Create(Format('Invalid directory "%s"', [Values[I]]));
+    end;
+
+    SharedDirectories := Values;
+  end
 
   // Allow the base class to set common options.
   else
@@ -226,6 +290,57 @@ begin
   {$WARNINGS OFF}
   FConfig.SetValue(JSON_PATH_SECURE_PROXY, Value);
   {$WARNINGS ON}
+end;
+
+procedure TMacConfiguration.SetSharedDirectories(const Value: TStringArray);
+var
+  DatabasePath: String;
+  F: TextFile;
+  I: Integer;
+  Options: TProcessOptions;
+  Output: String;
+  MountsPath: String;
+begin
+  DatabasePath := GetDockerDatabasePath;
+  MountsPath := GetDockerDatabasePath + '/' + DOCKER_DATABASE_MOUNTS;
+  Options := [poWaitOnExit, poUsePipes];
+
+  // Reset the database just in case manual changes have not been committed.
+  if not RunCommand('git', [
+      '-C',
+      DatabasePath,
+      'reset',
+      '--hard'
+    ], Output, Options) then
+    raise Exception.Create('Failed to reset git database');
+
+  // Write the list of directories to the file.
+  AssignFile(F, MountsPath);
+  Rewrite(F);
+
+  for I := 0 to High(Value) do
+    WriteLn(F, Format('%s:%s', [Value[I], Value[I]]));
+
+  CloseFile(F);
+
+  // Commit the changes in order to apply them upon restart of the service.
+  if not RunCommand('git', [
+      '-C',
+      DatabasePath,
+      'add',
+      DOCKER_DATABASE_MOUNTS
+    ], Output, Options) then
+    raise Exception.Create('Failed to add files for commit');
+
+  if not RunCommand('git', [
+      '-C',
+      DatabasePath,
+      'commit',
+      '--author="datakit <datakit@mobyproject.org>"',
+      '-m',
+      'setshareddirectories'
+    ], Output, Options) then
+    raise Exception.Create('Failed to commit changes to git database');
 end;
 
 procedure TMacConfiguration.SetSubnetAddress(const Value: String);
