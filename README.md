@@ -55,7 +55,8 @@ Setting a configuration value is just as easy:
 docker-control config set <name> <value>
 ```
 
-See the [Values](#values) section for a list of supported configuration values.
+See the [Configuration](#configuration) section for a list of supported
+configuration values.
 
 **Note**: Changes to configuration values will first take effect once the Docker
 service is restarted. This command will not trigger a restart as users may wish
