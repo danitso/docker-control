@@ -26,6 +26,7 @@ type
     OPTION_PROXIES_INSECURE_SERVER = 'proxies.insecure_server';
     OPTION_PROXIES_SECURE_SERVER = 'proxies.secure_server';
     OPTION_PROXIES_USE_PROXY = 'proxies.use_proxy';
+    OPTION_SHARING_DIRECTORIES = 'sharing.directories';
   protected
     FConfig: TJSONConfig;
 

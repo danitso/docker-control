@@ -39,8 +39,7 @@ type
     OPTION_NETWORK_DNS_FORWARDING = 'network.dns_forwarding';
     OPTION_NETWORK_DNS_SERVER = 'network.dns_server';
     OPTION_NETWORK_SUBNET_MASK_SIZE = 'network.subnet_mask_size';
-    OPTION_SHARED_DRIVES_CREDENTIALS = 'shared_drives.credentials';
-    OPTION_SHARED_DRIVES_LETTERS = 'shared_drives.letters';
+    OPTION_SHARING_CREDENTIALS = 'sharing.credentials';
   protected
     function GetAutoStart: Boolean; override;
     function GetAutoUpdate: Boolean; override;
@@ -198,7 +197,7 @@ begin
     Result := IntToStr(SubnetMaskSize)
 
   // Shared Drives
-  else if Name = OPTION_SHARED_DRIVES_CREDENTIALS then
+  else if Name = OPTION_SHARING_CREDENTIALS then
   begin
     SharedCredentials := GetSharedCredentials;
 
@@ -211,7 +210,7 @@ begin
         SharedCredentials.Password;
     end;
   end
-  else if Name = OPTION_SHARED_DRIVES_LETTERS then
+  else if Name = OPTION_SHARING_DIRECTORIES then
   begin
     Result := '';
     SharedDrives := GetSharedDrives;
@@ -219,9 +218,9 @@ begin
     for I := 0 to High(SharedDrives) do
     begin
       if (I > 0) then
-        Result := Result + ',' + SharedDrives[I]
+        Result := Result + ',' + SharedDrives[I] + ':\'
       else
-        Result := SharedDrives[I];
+        Result := SharedDrives[I] + ':\';
     end;
   end
 
@@ -425,7 +424,6 @@ end;
 procedure TWindowsConfiguration.SetOption(const Name, Value: String);
 var
   Credentials: TWindowsCredentials;
-  DriveLetter: String;
   DriveLetters: TWindowsDriveLetters;
   Values: TStringArray;
   I: Integer;
@@ -450,7 +448,7 @@ begin
   end
 
   // Shared Drives
-  else if Name = OPTION_SHARED_DRIVES_CREDENTIALS then
+  else if Name = OPTION_SHARING_CREDENTIALS then
   begin
     I := Pos(':', Value);
 
@@ -474,32 +472,24 @@ begin
 
     SharedCredentials := Credentials;
   end
-  else if Name = OPTION_SHARED_DRIVES_LETTERS then
+  else if Name = OPTION_SHARING_DIRECTORIES then
   begin
     SetLength(DriveLetters, 0);
     Values := TStringFunctions.Explode(',', Value);
 
     for I := 0 to High(Values) do
     begin
-      DriveLetter := Values[I] + ':\';
+      if not DirectoryExists(Values[I]) then
+      begin
+        raise Exception.Create(Format('Invalid directory ''%s''', [
+          Values[I]
+        ]));
+      end;
 
-      case GetDriveType(PChar(DriveLetter)) of
-        DRIVE_FIXED,
-        DRIVE_REMOTE:
-        begin
-          // Nothing wrong with these device types.
-        end;
-
-        DRIVE_CDROM,
-        DRIVE_RAMDISK,
-        DRIVE_REMOVABLE:
-        begin
-          raise Exception.Create(Format('Unsupported drive letter ''%s''', [
-            Values[I]
-          ]));
-        end;
+      case GetDriveType(PChar(Values[I])) of
+        DRIVE_FIXED, DRIVE_REMOTE:;
       else
-        raise Exception.Create(Format('Invalid drive letter ''%s''', [
+        raise Exception.Create(Format('Unsupported directory ''%s''', [
           Values[I]
         ]));
       end;

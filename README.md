@@ -13,9 +13,8 @@ Linux containers.
 1. [Installation](#installation)
 1. [Usage](#usage)
 1. [Commands](#commands)
-1. [Values](#values)
+1. [Configuration](#configuration)
     1. [Common](#common)
-    1. [Mac](#mac)
     1. [Windows](#windows)
 1. [License](#license)
 
@@ -84,15 +83,13 @@ The `stop` command stops the Docker service.
 The `version` command prints a version string. The command can also be invoked
 by using the aliases `-v` or `--version`.
 
-## Values
+## Configuration
 
 While some values are supported by both Docker for Mac and Windows, others are
 supported by only one of the systems. Trying to specify a system specific value
-on the wrong system will result in an error. Please see the following groups of
-values:
+on the wrong system will result in an error.
 
 * [Common](#common)
-* [Mac](#mac)
 * [Windows](#windows)
 
 ### Common
@@ -141,12 +138,13 @@ The URL for a secure proxy server (HTTPS).
 
 Whether to use custom proxy servers when pulling images.
 
-### Mac
-
-#### file_sharing.directories
+#### sharing.directories
 
 A comma separated list of directory paths, which will be used for host mapped
 volumes.
+
+**Note**: You can only share root directories on Windows i.e. `C:\`. You must
+also run the utility in an elevated command prompt (`Run as administrator`).
 
 ### Windows
 
@@ -166,21 +164,13 @@ The IP address of the primary DNS server.
 
 The subnet mask size for the virtual network.
 
-#### shared_drives.credentials
+#### sharing.credentials
 
-The username and password to use when accessing the shared drives.
+The username and password to use when accessing the shared directories.
 
 **Note:** The value must be specified as `username:password` or
 `computername\username:password`. The username will be prefixed with the current
 computer name, if the former format is used.
-
-#### shared_drives.letters
-
-A comma separated list of drive letters for the drives, which will be used for
-host mapped volumes.
-
-**Warning**: Drive sharing will fail, if the utility does not run in an elevated
-command prompt (`Run as administrator`).
 
 ## License
 
