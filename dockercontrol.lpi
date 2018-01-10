@@ -13,6 +13,9 @@
       <Title Value="Docker Control"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
+      <XPManifest>
+        <ExecutionLevel Value="requireAdministrator"/>
+      </XPManifest>
     </General>
     <VersionInfo>
       <UseVersionInfo Value="True"/>
@@ -30,7 +33,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="9">
+    <Units Count="13">
       <Unit0>
         <Filename Value="dockercontrol.pas"/>
         <IsPartOfProject Value="True"/>
@@ -76,6 +79,26 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="WindowsShares"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="src\classes\common\dockerconfiguration.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="DockerConfiguration"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="src\classes\mac\maccontroller.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="MacController"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="src\classes\common\dockercontroller.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="DockerController"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="src\classes\mac\macconfiguration.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="MacConfiguration"/>
+      </Unit12>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -86,7 +109,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src\interfaces;src\interfaces\common;src\classes\windows;src\classes\common"/>
+      <OtherUnitFiles Value="src\interfaces;src\interfaces\common;src\classes\windows;src\classes\common;src\classes\mac"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)\$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
@@ -96,6 +119,7 @@
     </Parsing>
     <CodeGeneration>
       <SmartLinkUnit Value="True"/>
+      <TargetCPU Value="x86_64"/>
       <Optimizations>
         <OptimizationLevel Value="3"/>
       </Optimizations>

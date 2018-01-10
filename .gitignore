@@ -1,7 +1,8 @@
 # Ignore temporary files such as compiled objects.
 
+*.bat
 *.lps
+*.res
 
-/bin/*/*/*.bat
-/bin/*/*/*.res
+backup/
 /lib

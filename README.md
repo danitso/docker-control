@@ -1,19 +1,21 @@
 # Docker Control
 
-A command line utility for controlling Docker for Windows.
+A command line utility for controlling Docker for Mac and Windows.
 
 ## Motivation
 
-The utility was created due to a limitation in Docker for Windows which
-prevents users from controlling the Docker service from the command line when
-running Linux containers.
+The utility was created due to a limitation in Docker for Windows which prevents
+users from controlling the Docker service from the command line when running
+Linux containers.
 
 ## Table of contents
 
 1. [Installation](#installation)
 1. [Usage](#usage)
-    1. [Commands](#commands)
-    1. [Values](#values)
+1. [Commands](#commands)
+1. [Configuration](#configuration)
+    1. [Common](#common)
+    1. [Windows](#windows)
 1. [License](#license)
 
 ## Installation
@@ -22,6 +24,9 @@ running Linux containers.
 1. Determine the absolute path to the `bin` directory which contains the binary
    for your operating system
 1. Add the path to your system's `PATH` variable.
+
+**Note**: Git must be installed on Mac in order to retrieve and change
+shared directories.
 
 ## Usage
 
@@ -33,9 +38,9 @@ docker-control <command>
 
 See a list of commands below.
 
-### Commands
+## Commands
 
-#### config
+### config
 
 The `config` command has a simple getter/setter interface. You can retrieve a
 configuration value by invoking the following command:
@@ -56,43 +61,50 @@ See the [Values](#values) section for a list of supported configuration values.
 service is restarted. This command will not trigger a restart as users may wish
 to delay this action.
 
-#### reset
+### reset
 
 The `reset` command resets the configuration values and triggers a restart of
 the Docker service.
 
-#### restart
+### restart
 
 The `restart` command restarts the Docker service.
 
-#### start
+### start
 
 The `start` command starts the Docker service.
 
-#### stop
+### stop
 
 The `stop` command stops the Docker service.
 
-#### version
+### version
 
 The `version` command prints a version string. The command can also be invoked
 by using the aliases `-v` or `--version`.
 
-### Values
+## Configuration
 
-The following configuration values are supported.
+While some values are supported by both Docker for Mac and Windows, others are
+supported by only one of the systems. Trying to specify a system specific value
+on the wrong system will result in an error.
 
-#### advanced.cpus
+* [Common](#common)
+* [Windows](#windows)
 
-The number of CPUs to allocate for the virtual machine.
+### Common
+
+#### advanced.disk_image
+
+The absolute path to the disk image for the virtual machine.
 
 #### advanced.memory
 
 The amount of memory (in megabytes) to allocate for the virtual machine.
 
-#### advanced.vhd_path
+#### advanced.processors
 
-The absolute path to the VHD file for the virtual machine.
+The number of processors to allocate for the virtual machine.
 
 #### general.autostart
 
@@ -102,33 +114,13 @@ Whether to start Docker when a user logs in.
 
 Whether to automatically update Docker when a new version is released.
 
-#### general.expose_daemon
-
-Whether to expose an insecure TCP socket for the Docker daemon.
-
 #### general.tracking
 
 Whether to allow anonymous usage data to be sent to the Docker team.
 
-#### network.dns_forwarding
-
-Whether to use DNS forwarding.
-
-#### network.dns_server
-
-The IP address of the primary DNS server.
-
 #### network.subnet_address
 
 The subnet address for the virtual network.
-
-#### network.subnet_mask_size
-
-The subnet mask size for the virtual network.
-
-#### proxies.enabled
-
-Whether to use proxy servers when pulling images.
 
 #### proxies.excluded_hostnames
 
@@ -142,18 +134,43 @@ The URL for an insecure proxy server (HTTP).
 
 The URL for a secure proxy server (HTTPS).
 
-#### shared_drives.credentials
+#### proxies.use_proxy
 
-The username and password to use when accessing the shared drives.
+Whether to use custom proxy servers when pulling images.
+
+#### sharing.directories
+
+A comma separated list of directory paths, which will be used for host mapped
+volumes.
+
+**Note**: You can only share root directories on Windows i.e. `C:\`. You must
+also run the utility in an elevated command prompt (`Run as administrator`).
+
+### Windows
+
+#### general.expose_daemon
+
+Whether to expose an insecure TCP socket for the Docker daemon.
+
+#### network.dns_forwarding
+
+Whether to use DNS forwarding.
+
+#### network.dns_server
+
+The IP address of the primary DNS server.
+
+#### network.subnet_mask_size
+
+The subnet mask size for the virtual network.
+
+#### sharing.credentials
+
+The username and password to use when accessing the shared directories.
 
 **Note:** The value must be specified as `username:password` or
 `computername\username:password`. The username will be prefixed with the current
 computer name, if the former format is used.
-
-#### shared_drives.letters
-
-A comma separated list of drive letters for the drives, which will be used for
-host mapped volumes.
 
 ## License
 
