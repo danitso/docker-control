@@ -27,7 +27,6 @@ type
     JSON_PATH_SUBNET_ADDRESS = '/hyperkitIpRange';
     JSON_PATH_TRACKING = '/analyticsEnabled';
     JSON_PATH_USE_PROXY = '/proxyHttpMode';
-    OPTION_SHARED_DIRECTORIES = 'file_sharing.directories';
   protected
     function GetAutoStart: Boolean; override;
     function GetAutoUpdate: Boolean; override;
@@ -135,8 +134,8 @@ var
 begin
   Result := '';
 
-  // General
-  if Name = OPTION_SHARED_DIRECTORIES then
+  // File Sharing
+  if Name = OPTION_SHARING_DIRECTORIES then
   begin
     Values := SharedDirectories;
 
@@ -261,8 +260,8 @@ var
   I: Integer;
   Values: TStringArray;
 begin
-  // General
-  if Name = OPTION_SHARED_DIRECTORIES then
+  // File Sharing
+  if Name = OPTION_SHARING_DIRECTORIES then
   begin
     Values := TStringFunctions.Explode(',', Value);
 
