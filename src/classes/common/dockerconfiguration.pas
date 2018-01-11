@@ -9,6 +9,9 @@ uses
   ConfigurationInterface,
   FpJson,
   JsonConf,
+  {$IFNDEF MSWINDOWS}
+  Process,
+  {$ENDIF}
   SysUtils;
 
 type
@@ -32,6 +35,7 @@ type
 
     function GetAutoStart: Boolean; virtual; abstract;
     function GetAutoUpdate: Boolean; virtual; abstract;
+    function GetCoreCount: Cardinal;
     function GetDiskImage: String; virtual; abstract;
     function GetExcludedProxyHostnames: String; virtual; abstract;
     function GetInsecureProxyServer: String; virtual; abstract;
@@ -109,6 +113,29 @@ begin
   inherited;
 end;
 
+function TDockerConfiguration.GetCoreCount: Cardinal;
+{$IFNDEF MSWINDOWS}
+var
+  Output: String;
+{$ENDIF}
+begin
+  {$IFDEF MSWINDOWS}
+  Result := GetCPUCount;
+  {$ELSE}
+  Output := '';
+
+  {$IFDEF DARWIN}
+  if RunCommand('sysctl', ['-n', 'hw.ncpu'], Output,
+    [poUsePipes, poWaitOnExit]) then
+  {$ELSE}
+  if RunCommand('nproc', [], Output, [poUsePipes, poWaitOnExit]) then
+  {$ENDIF}
+    Result := StrToInt(Trim(Output))
+  else
+    Result := 0;
+  {$ENDIF}
+end;
+
 function TDockerConfiguration.GetOption(const Name: string): String;
 begin
   Result := '';
@@ -150,6 +177,7 @@ end;
 
 procedure TDockerConfiguration.SetOption(const Name, Value: String);
 var
+  C: Cardinal;
   I: Cardinal;
 begin
   // Advanced
@@ -171,13 +199,14 @@ begin
   else if Name = OPTION_ADVANCED_PROCESSORS then
   begin
     I := StrToInt(Value);
+    C := GetCoreCount;
 
     if (I < 1) then
       raise Exception.Create(
         'The virtual machine requires at least one processors')
-    else if (I > GetCPUCount) then
+    else if (I > C) then
       raise Exception.Create(Format('The system only has %d processor(s)',
-        [GetCPUCount]));
+        [C]));
 
     Processors := I;
   end
