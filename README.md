@@ -43,16 +43,24 @@ See a list of commands below.
 ### config
 
 The `config` command has a simple getter/setter interface. You can retrieve a
-configuration value by invoking the following command:
+value by invoking the following command:
 
 ```bash
 docker-control config get <name>
 ```
 
-Setting a configuration value is just as easy:
+Setting a value is just as easy:
 
 ```bash
 docker-control config set <name> <value>
+```
+
+You can also retrieve and set multiple values with a single invocation of the
+commands:
+
+```bash
+docker-control config get <name> <name> ...
+docker-control config set <name> <value> <name> <value> ...
 ```
 
 See the [Configuration](#configuration) section for a list of supported
