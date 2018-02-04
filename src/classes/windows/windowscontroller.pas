@@ -77,7 +77,7 @@ begin
     if Registry.OpenKeyReadOnly('\SOFTWARE\Docker Inc.\Docker\1.0') then
       Result := Registry.ReadString('AppPath') + '\' + DOCKER_UI_EXE_NAME;
   finally
-    FreeAndNil(Registry);
+    Registry.Free;
   end;
 end;
 
@@ -162,6 +162,7 @@ begin
   try
     Process := TProcess.Create(nil);
     Process.Executable := 'docker';
+    Process.InheritHandles := False;
     Process.Options := [poWaitOnExit, poUsePipes];
     Process.Parameters.Append('ps');
     Process.Execute;
@@ -169,7 +170,7 @@ begin
     if Process.ExitCode = 0 then
       Result := True;
   finally
-    FreeAndNil(Process);
+    Process.Free;
   end;
 end;
 
@@ -184,7 +185,7 @@ begin
     Result := Assigned(TrayButton) and
               (Pos('starting', TrayButton.Caption) > 0);
   finally
-    FreeAndNil(Tray);
+    Tray.Free;
   end;
 end;
 
@@ -246,7 +247,6 @@ const
   TIMEOUT_STARTUP = 120;
 var
   Path: String;
-  Process: TProcess;
   ProcessId: Cardinal;
 begin
   Result := False;
@@ -276,15 +276,7 @@ begin
     Exit;
   end;
 
-  try
-    Process := TProcess.Create(nil);
-    Process.Executable := Path;
-    Process.InheritHandles := False;
-    Process.Options := [];
-    Process.Execute;
-  finally
-    Process.Free;
-  end;
+  ShellExecute(0, 'open', PChar(Path), nil, 'C:\', SW_SHOW);
 
   // Wait for the Docker UI to begin its startup phase.
   if not WaitForDockerUITrayButton(TIMEOUT_EXECUTE) then
