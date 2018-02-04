@@ -162,8 +162,8 @@ begin
   try
     Process := TProcess.Create(nil);
     Process.Executable := 'docker';
-    Process.Parameters.Append('ps');
     Process.Options := [poWaitOnExit, poUsePipes];
+    Process.Parameters.Append('ps');
     Process.Execute;
 
     if Process.ExitCode = 0 then
@@ -279,6 +279,7 @@ begin
   try
     Process := TProcess.Create(nil);
     Process.Executable := Path;
+    Process.InheritHandles := False;
     Process.Options := [];
     Process.Execute;
   finally
