@@ -68,8 +68,8 @@ var
 begin
   Result := '';
 
-  // Determine the path to the Docker UI's application directory by reading it
-  // from the Windows Registry.
+  // Determine the path to the Docker UI's binary by reading it from the Windows
+  // Registry.
   try
     Registry := TRegistry.Create;
     Registry.RootKey := HKEY_LOCAL_MACHINE;
@@ -243,7 +243,7 @@ end;
 
 function TWindowsController.Start: Boolean;
 const
-  TIMEOUT_EXECUTE = 5;
+  TIMEOUT_EXECUTE = 30;
   TIMEOUT_STARTUP = 120;
 var
   Path: String;
