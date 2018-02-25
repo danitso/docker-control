@@ -14,9 +14,12 @@ type
   TTray = class
   protected
     FOverflowButtons: TTrayButtonList;
+    FOverflowImageList: HWND;
     FOverflowToolBar: HWND;
     FOverflowWindow: HWND;
+
     FTrayButtons: TTrayButtonList;
+    FTrayImageList: HWND;
     FTrayToolBar: HWND;
     FTrayWindow: HWND;
 
@@ -27,12 +30,13 @@ type
     function FindTrayWindow: HWND;
 
     function GetButtonCount(const ToolBarWindow: HWND): Integer;
-    function GetButtonRows(const ToolBarWindow: HWND): Integer;
-    function GetButtonSize(
+    function GetButtonRect(
       const ProcessHandle: HWND;
       const ToolBarWindow: HWND;
       const ButtonIndex: Integer
-    ): TSize;
+    ): TRect;
+    function GetButtonRows(const ToolBarWindow: HWND): Integer;
+    function GetImageList(const ToolBarWindow: HWND): HWND;
 
     function GetOverflowButton(const AIndex: Integer): TTrayButton;
     function GetOverflowButtonCount: Integer;
@@ -64,6 +68,7 @@ type
       read GetOverflowButton;
     property OverflowButtonCount: Integer read GetOverflowButtonCount;
     property OverflowButtonRows: Integer read GetOverflowButtonRows;
+    property OverflowImageList: HWND read FOverflowImageList;
     property OverflowToolBar: HWND read FOverflowToolBar;
     property OverflowWindow: HWND read FOverflowWindow;
 
@@ -71,6 +76,7 @@ type
       read GetTrayButton;
     property TrayButtonCount: Integer read GetTrayButtonCount;
     property TrayButtonRows: Integer read GetTrayButtonRows;
+    property TrayImageList: HWND read FTrayImageList;
     property TrayToolBar: HWND read FTrayToolBar;
     property TrayWindow: HWND read FTrayWindow;
   end;
@@ -134,24 +140,17 @@ begin
   Result := SendMessage(ToolBarWindow, TB_BUTTONCOUNT, 0, 0);
 end;
 
-function TTray.GetButtonRows(const ToolBarWindow: HWND): Integer;
-begin
-  Result := SendMessage(ToolBarWindow, TB_GETROWS, 0, 0);
-end;
-
-function TTray.GetButtonSize(
+function TTray.GetButtonRect(
   const ProcessHandle: HWND;
   const ToolBarWindow: HWND;
   const ButtonIndex: Integer
-): TSize;
+): TRect;
 var
   BytesRead: QWord;
-  Rect: TRect;
   RectPointer: Pointer;
   RectResult: Boolean;
 begin
-  Result.Create(-1, -1);
-  Rect.Create(0, 0, 0, 0);
+  Result.Create(0, 0, 0, 0);
 
   try
     RectPointer := Pointer(VirtualAllocEx(
@@ -175,28 +174,36 @@ begin
     {$HINTS ON}
 
     if not RectResult then
-      Exit;
+      raise Exception.Create('Failed to retrieve RECT for TB_BUTTON');
 
     BytesRead := 0;
     RectResult := ReadProcessMemory(
       ProcessHandle,
       RectPointer,
-      @Rect,
-      SizeOf(Rect),
+      @Result,
+      SizeOf(Result),
       BytesRead
     );
 
     if not RectResult then
-      Exit;
-
-    Result.Create(Rect.Width, Rect.Height);
+      raise Exception.Create('Failed to read RECT for TB_BUTTON');
   finally
     if RectPointer <> nil then
     begin
       if not VirtualFreeEx(ProcessHandle, RectPointer, 0, MEM_RELEASE) then
-        raise Exception.Create('Failed to free RECT pointer');
+        raise Exception.Create('Failed to free RECT pointer for TB_BUTTON');
     end;
   end;
+end;
+
+function TTray.GetButtonRows(const ToolBarWindow: HWND): Integer;
+begin
+  Result := SendMessage(ToolBarWindow, TB_GETROWS, 0, 0);
+end;
+
+function TTray.GetImageList(const ToolBarWindow: HWND): HWND;
+begin
+  Result := SendMessage(ToolBarWindow, $0431, 0, 0);
 end;
 
 function TTray.GetOverflowButton(const AIndex: Integer): TTrayButton;
@@ -296,8 +303,8 @@ begin
     if not ToolButtonResult then
       raise Exception.Create('Failed to retrieve TBBUTTON struct');
 
-    // Extract the image index from the TBBUTTON structure and store it in the
-    // wrapper class instance.
+    // Extract the relevant values from the TBBUTTON struct.
+    TrayButton.Command := ToolButton.idCommand;
     TrayButton.ImageIndex := ToolButton.iBitmap;
 
     // Extract the button's caption and while these may actually be indexes, we
@@ -339,7 +346,8 @@ begin
 
     // Extract the button's size by invoking TB_GETITEMRECT using memory
     // allocated in the external application.
-    TrayButton.Size := GetButtonSize(ProcessHandle, ToolBarWindow, Index);
+    TrayButton.BoundingRect := GetButtonRect(ProcessHandle, ToolBarWindow,
+      Index);
 
     // Add the button to the list as we should have spotted errors by now, if
     // some had occurred.
@@ -379,6 +387,12 @@ begin
   // Create new TTrayButton instances based on the tool button structures.
   try
     ButtonCount := GetButtonCount(ToolBarWindow);
+
+    if Overflow then
+      FOverflowImageList := GetImageList(ToolBarWindow)
+    else
+      FTrayImageList := GetImageList(ToolBarWindow);
+
     OwnerProcessHandle := OpenProcess(
       PROCESS_VM_OPERATION or
       PROCESS_VM_READ or

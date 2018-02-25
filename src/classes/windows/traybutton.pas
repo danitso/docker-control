@@ -19,21 +19,23 @@ type
   { TTrayButton }
   TTrayButton = class
   protected
+    FBoundingRect: TRect;
     FButtonIndex: Integer;
     FCaption: AnsiString;
+    FCommand: Integer;
     FImageIndex: Integer;
     FOverflow: Boolean;
     FParent: TObject;
-    FSize: TSize;
   public
     function Popup: HWND;
 
+    property BoundingRect: TRect read FBoundingRect write FBoundingRect;
     property ButtonIndex: Integer read FButtonIndex write FButtonIndex;
     property Caption: AnsiString read FCaption write FCaption;
+    property Command: Integer read FCommand write FCommand;
     property ImageIndex: Integer read FImageIndex write FImageIndex;
     property Overflow: Boolean read FOverflow write FOverflow;
     property Parent: TObject read FParent write FParent;
-    property Size: TSize read FSize write FSize;
   end;
 
 implementation
@@ -45,10 +47,7 @@ function TTrayButton.Popup: HWND;
 const
   TIMEOUT = 5;
 var
-  Cols: Integer;
   CursorPostion: TPoint;
-  CursorPostionButton: TPoint;
-  CursorPostionNew: TPoint;
   I: Integer;
   PopupWindowHandle: HWND;
   PopupWindowHandleNew: HWND;
@@ -75,11 +74,25 @@ begin
     WindowHandle := Tray.TrayWindow;
 
   // In case we are dealing with the overflow tray window, we need to ensure
-  // that it is visible and the top most window at its location.
+  // that it is visible and is the top most window at its location.
   if FOverflow then
   begin
     ShowWindow(WindowHandle, SW_SHOWNOACTIVATE);
-    BringWindowToTop(WindowHandle);
+
+    I := 0;
+
+    for I := 1 to TIMEOUT * 1000 do
+    begin
+      if IsWindowVisible(WindowHandle) then
+        Break;
+
+      Sleep(1);
+    end;
+
+    if IsWindowVisible(WindowHandle) then
+      BringWindowToTop(WindowHandle)
+    else
+      Exit;
   end;
 
   // Determine the dimensions of the tray window and calculate the number of
@@ -89,19 +102,17 @@ begin
   if not GetWindowRect(WindowHandle, WindowRect) then
     raise Exception.Create('Failed to determine the tray window position');
 
-  Cols := WindowRect.Width div Self.Size.Width;
-
-  // Calculate the desktop coordinates for the tray icon (the tool button).
-  TrayButtonX := Self.Size.Width div 2 + ((FButtonIndex mod Cols) *
-    Self.Size.Width);
-  TrayButtonY := Self.Size.Height div 2 + ((ButtonIndex div Cols) *
-    Self.Size.Height);
+  // Calculate the position of the tray button relative to the screen.
+  TrayButtonX := WindowRect.Left + FBoundingRect.Left +
+    (FBoundingRect.Width div 2);
+  TrayButtonY := WindowRect.Top + FBoundingRect.Top +
+    (FBoundingRect.Height div 2);
 
   // Determine the window handle for the window which is currently visible at
   // the location we expect the popup menu to appear.
   PopupWindowPoint.Create(
-    WindowRect.Left + TrayButtonX - 16,
-    WindowRect.Top + TrayButtonY - 16
+    TrayButtonX - FBoundingRect.Width,
+    TrayButtonY - FBoundingRect.Height
   );
   PopupWindowHandle := WindowFromPoint(PopupWindowPoint);
 
@@ -110,8 +121,7 @@ begin
   // without moving the mouse and instead use PostMessage(), it has become clear
   // that we cannot target the correct event listener.
   GetCursorPos(CursorPostion);
-  SetCursorPos(WindowRect.Left + TrayButtonX, WindowRect.Top + TrayButtonY);
-  GetCursorPos(CursorPostionButton);
+  SetCursorPos(TrayButtonX, TrayButtonY);
 
   Mouse_Event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
   Mouse_Event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
@@ -126,22 +136,23 @@ begin
       (GetWindowLongPtr(PopupWindowHandleNew, GWL_STYLE) and WS_POPUP <> 0) then
     begin
       Result := PopupWindowHandleNew;
-      BringWindowToTop(Result);
       Break;
     end;
 
     Sleep(1);
   end;
 
+  // Move the cursor back to its original position, if the user has not moved it
+  // in the meantime.
+  SetCursorPos(CursorPostion.x, CursorPostion.y);
+
+  // Hide the overflow window again in case we had to make it visible.
   if FOverflow then
     ShowWindow(WindowHandle, SW_HIDE);
 
-  // Move the cursor back to its original position, if the user has not moved it
-  // in the meantime.
-  GetCursorPos(CursorPostionNew);
-
-  if CursorPostionButton.Distance(CursorPostionNew) = 0 then
-    SetCursorPos(CursorPostion.x, CursorPostion.y);
+  // Bring the popup window to the top of the screen.
+  if Result <> 0 then
+    BringWindowToTop(Result);
 end;
 
 end.

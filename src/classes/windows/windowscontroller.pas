@@ -359,7 +359,7 @@ begin
     Exit;
   end;
 
-  // Simulate a left click on the 'Quit Docker' tray menu item.
+  // Simulate a left click on the 'Quit Docker' menu item.
   GetCursorPos(CursorPostion);
   SetCursorPos(
     PopupWindowRect.Left + 8,
