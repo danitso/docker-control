@@ -10,6 +10,7 @@ Linux containers.
 
 ## Table of contents
 
+1. [Requirements](#requirements)
 1. [Installation](#installation)
 1. [Usage](#usage)
 1. [Commands](#commands)
@@ -18,15 +19,17 @@ Linux containers.
     1. [Windows](#windows)
 1. [License](#license)
 
+## Requirements
+
+* Docker for Mac 17.12 or greater
+* Docker for Windows 17.09 or greater
+
 ## Installation
 
 1. Clone or download the repository
 1. Determine the absolute path to the `bin` directory which contains the binary
    for your operating system
 1. Add the path to your system's `PATH` variable.
-
-**Note**: Git must be installed on Mac in order to retrieve and change
-shared directories.
 
 ## Usage
 

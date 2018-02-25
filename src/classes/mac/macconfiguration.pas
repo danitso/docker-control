@@ -15,7 +15,6 @@ type
   { TMacConfiguration }
   TMacConfiguration = class(TDockerConfiguration)
   private const
-    DOCKER_DATABASE_MOUNTS = 'com.docker.driver.amd64-linux/mounts';
     JSON_PATH_AUTOSTART = '/autoStart';
     JSON_PATH_AUTOUPDATE = '/checkForUpdates';
     JSON_PATH_DISK_IMAGE = '/diskPath';
@@ -24,6 +23,7 @@ type
     JSON_PATH_MEMORY = '/memoryMiB';
     JSON_PATH_PROCESSORS = '/cpus';
     JSON_PATH_SECURE_PROXY = '/overrideProxyHttps';
+    JSON_PATH_SHARED_DIRECTORIES = '/filesharingDirectories';
     JSON_PATH_SUBNET_ADDRESS = '/hyperkitIpRange';
     JSON_PATH_TRACKING = '/analyticsEnabled';
     JSON_PATH_USE_PROXY = '/proxyHttpMode';
@@ -174,24 +174,20 @@ end;
 
 function TMacConfiguration.GetSharedDirectories: TStringArray;
 var
+  Directories: TStringList;
   I: Integer;
-  Strings: TStringList;
-  Values: TStringArray;
 begin
   SetLength(Result, 0);
-  Strings := TStringList.Create;
+  Directories := TStringList.Create;
 
   try
-    Strings.LoadFromFile(GetDockerDatabasePath + '/' + DOCKER_DATABASE_MOUNTS);
-    SetLength(Result, Strings.Count);
+    FConfig.GetValue(JSON_PATH_SHARED_DIRECTORIES, Directories, '');
+    SetLength(Result, Directories.Count);
 
-    for I := 0 to Strings.Count - 1 do
-    begin
-      Values := TStringFunctions.Explode(':', Strings[I]);
-      Result[I] := Values[0];
-    end;
+    for I := 0 to Directories.Count - 1 do
+      Result[I] := Directories[I];
   finally
-    Strings.Free;
+    Directories.Free;
   end;
 end;
 
@@ -293,53 +289,19 @@ end;
 
 procedure TMacConfiguration.SetSharedDirectories(const Value: TStringArray);
 var
-  DatabasePath: String;
-  F: TextFile;
+  Directories: TStringList;
   I: Integer;
-  Options: TProcessOptions;
-  Output: String;
-  MountsPath: String;
 begin
-  DatabasePath := GetDockerDatabasePath;
-  MountsPath := GetDockerDatabasePath + '/' + DOCKER_DATABASE_MOUNTS;
-  Options := [poWaitOnExit, poUsePipes];
-
-  // Reset the database just in case manual changes have not been committed.
-  if not RunCommand('git', [
-      '-C',
-      DatabasePath,
-      'reset',
-      '--hard'
-    ], Output, Options) then
-    raise Exception.Create('Failed to reset git database');
-
-  // Write the list of directories to the file.
-  AssignFile(F, MountsPath);
-  Rewrite(F);
+  Directories := TStringList.Create;
 
   for I := 0 to High(Value) do
-    WriteLn(F, Format('%s:%s', [Value[I], Value[I]]));
+    Directories.Add(Value[I]);
 
-  CloseFile(F);
-
-  // Commit the changes in order to apply them upon restart of the service.
-  if not RunCommand('git', [
-      '-C',
-      DatabasePath,
-      'add',
-      DOCKER_DATABASE_MOUNTS
-    ], Output, Options) then
-    raise Exception.Create('Failed to add files for commit');
-
-  if not RunCommand('git', [
-      '-C',
-      DatabasePath,
-      'commit',
-      '--author="datakit <datakit@mobyproject.org>"',
-      '-m',
-      'setshareddirectories'
-    ], Output, Options) then
-    raise Exception.Create('Failed to commit changes to git database');
+  try
+    FConfig.SetValue(JSON_PATH_SHARED_DIRECTORIES, Directories);
+  finally
+    Directories.Free;
+  end;
 end;
 
 procedure TMacConfiguration.SetSubnetAddress(const Value: String);

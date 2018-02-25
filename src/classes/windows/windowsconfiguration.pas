@@ -317,9 +317,9 @@ var
   I: Integer;
 begin
   SetLength(Result, 0);
+  DriveLetters := TStringList.Create;
 
   try
-    DriveLetters := TStringList.Create;
     FConfig.EnumValues(JSON_PATH_SHARED_DRIVES, DriveLetters);
 
     for I := 0 to DriveLetters.Count - 1 do
